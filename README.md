@@ -79,7 +79,7 @@ certifyhub/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/certifyhub.git
+git clone https://github.com/Ixotic27/certifyhub.git
 cd certifyhub
 ```
 
