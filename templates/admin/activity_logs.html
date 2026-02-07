@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Logs - CertifyHub{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 fw-bold">
+                <i class="fas fa-history text-danger"></i> Activity Logs
+            </h1>
+            <p class="text-muted">Track all platform actions and changes</p>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <small class="text-muted d-block mb-1">
+                        <i class="fas fa-layer-group"></i> Total Actions (7 days)
+                    </small>
+                    <h3 class="fw-bold mb-0" id="totalActions">-</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <small class="text-muted d-block mb-1">
+                        <i class="fas fa-file-certificate"></i> Templates Created
+                    </small>
+                    <h3 class="fw-bold mb-0" id="templatesCreated">-</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <small class="text-muted d-block mb-1">
+                        <i class="fas fa-users"></i> Attendees Imported
+                    </small>
+                    <h3 class="fw-bold mb-0" id="attendeesImported">-</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <small class="text-muted d-block mb-1">
+                        <i class="fas fa-certificate"></i> Certificates Generated
+                    </small>
+                    <h3 class="fw-bold mb-0" id="certsGenerated">-</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <label class="form-label fw-bold">Action Type</label>
+            <select class="form-select" id="actionFilter">
+                <option value="">All Actions</option>
+                <option value="create_template">Create Template</option>
+                <option value="deactivate_template">Deactivate Template</option>
+                <option value="upload_attendees">Import Attendees</option>
+                <option value="generate_certificate">Generate Certificate</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-bold">Date Range</label>
+            <select class="form-select" id="daysFilter">
+                <option value="1">Last 24 Hours</option>
+                <option value="7" selected>Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="90">Last 90 Days</option>
+            </select>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+            <button class="btn btn-danger w-100" onclick="loadActivityLogs()">
+                <i class="fas fa-search"></i> Apply Filters
+            </button>
+        </div>
+    </div>
+
+    <!-- Activity Timeline -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div id="activityTimeline" style="padding: 2rem;">
+                        <div class="text-center">
+                            <div class="spinner-border text-danger" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Stats Chart -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie text-danger"></i> Actions Breakdown
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="statsChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity Table -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list text-danger"></i> Detailed Activity Log
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Action</th>
+                                    <th>Admin</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activityTable">
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="spinner-border text-danger spinner-border-sm" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script src="/static/js/api.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('actionFilter').addEventListener('change', loadActivityLogs);
+    document.getElementById('daysFilter').addEventListener('change', loadActivityLogs);
+    
+    loadActivityLogs();
+});
+
+async function loadActivityLogs() {
+    try {
+        const action = document.getElementById('actionFilter').value;
+        const days = parseInt(document.getElementById('daysFilter').value);
+        
+        // Load logs
+        const logsResponse = await API.admin.getActivityLogs(100, 0, action, days);
+        if (!logsResponse.ok) {
+            showError('Failed to load activity logs');
+            return;
+        }
+        
+        const logs = logsResponse.data.logs || [];
+        
+        // Load stats
+        const statsResponse = await API.admin.getActivityStats(days);
+        if (!statsResponse.ok) {
+            showError('Failed to load activity stats');
+            return;
+        }
+        
+        const stats = statsResponse.data;
+        
+        // Update UI
+        updateStats(stats);
+        renderTimeline(logs);
+        renderTable(logs);
+        updateChart(stats.statistics || []);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showError('Error loading activity logs');
+    }
+}
+
+function updateStats(stats) {
+    const stats_by_action = stats.statistics || [];
+    const total = stats_by_action.reduce((sum, s) => sum + s.count, 0);
+    const templates = stats_by_action.find(s => s.action === 'create_template')?.count || 0;
+    const attendees = stats_by_action.find(s => s.action === 'upload_attendees')?.count || 0;
+    const certs = stats_by_action.find(s => s.action === 'generate_certificate')?.count || 0;
+    
+    document.getElementById('totalActions').textContent = total;
+    document.getElementById('templatesCreated').textContent = templates;
+    document.getElementById('attendeesImported').textContent = attendees;
+    document.getElementById('certsGenerated').textContent = certs;
+}
+
+function renderTimeline(logs) {
+    const timeline = document.getElementById('activityTimeline');
+    
+    if (logs.length === 0) {
+        timeline.innerHTML = '<p class="text-muted text-center">No activity logs found</p>';
+        return;
+    }
+    
+    let html = '<div class="timeline">';
+    
+    logs.forEach((log, index) => {
+        const date = new Date(log.created_at);
+        const time = date.toLocaleTimeString();
+        const dateStr = date.toLocaleDateString();
+        const icon = getActionIcon(log.action);
+        const color = getActionColor(log.action);
+        
+        html += `
+            <div class="timeline-item mb-4" style="padding-left: 2.5rem; position: relative;">
+                <div style="position: absolute; left: 0; top: 0; width: 2rem; height: 2rem; border-radius: 50%; background-color: ${color}; display: flex; align-items: center; justify-content: center; color: white;">
+                    ${icon}
+                </div>
+                <div>
+                    <h6 class="fw-bold mb-1">${capitalize(log.action.replace(/_/g, ' '))}</h6>
+                    <small class="text-muted d-block mb-2">${dateStr} at ${time}</small>
+                    <p class="mb-0 text-muted" style="font-size: 0.9rem;">
+                        ${formatDetails(log.action, log.details)}
+                    </p>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    timeline.innerHTML = html;
+}
+
+function renderTable(logs) {
+    const tbody = document.getElementById('activityTable');
+    
+    if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No logs found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = logs.map(log => {
+        const date = new Date(log.created_at);
+        const timeStr = date.toLocaleString();
+        const icon = getActionIcon(log.action);
+        const color = getActionColor(log.action);
+        
+        return `
+            <tr>
+                <td>
+                    <small class="text-muted">${timeStr}</small>
+                </td>
+                <td>
+                    <span style="color: ${color}; margin-right: 0.5rem;">${icon}</span>
+                    <strong>${capitalize(log.action.replace(/_/g, ' '))}</strong>
+                </td>
+                <td>
+                    <small>${log.admin_id || 'System'}</small>
+                </td>
+                <td>
+                    <small class="text-muted">${formatDetails(log.action, log.details)}</small>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function updateChart(stats) {
+    const ctx = document.getElementById('statsChart').getContext('2d');
+    
+    const labels = stats.map(s => capitalize(s.action.replace(/_/g, ' ')));
+    const data = stats.map(s => s.count);
+    const colors = stats.map(s => getActionColor(s.action));
+    
+    if (window.statsChartInstance) {
+        window.statsChartInstance.data.labels = labels;
+        window.statsChartInstance.data.datasets[0].data = data;
+        window.statsChartInstance.data.datasets[0].backgroundColor = colors;
+        window.statsChartInstance.update();
+    } else {
+        window.statsChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors,
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 15,
+                            font: { size: 12 }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+function getActionIcon(action) {
+    const icons = {
+        'create_template': '<i class="fas fa-file-circle-plus"></i>',
+        'deactivate_template': '<i class="fas fa-ban"></i>',
+        'upload_attendees': '<i class="fas fa-user-plus"></i>',
+        'import_attendees': '<i class="fas fa-upload"></i>',
+        'generate_certificate': '<i class="fas fa-certificate"></i>'
+    };
+    return icons[action] || '<i class="fas fa-bell"></i>';
+}
+
+function getActionColor(action) {
+    const colors = {
+        'create_template': '#28a745',
+        'deactivate_template': '#ffc107',
+        'upload_attendees': '#17a2b8',
+        'import_attendees': '#17a2b8',
+        'generate_certificate': '#dc3545'
+    };
+    return colors[action] || '#6c757d';
+}
+
+function formatDetails(action, details) {
+    if (!details) return '';
+    
+    try {
+        const data = typeof details === 'string' ? JSON.parse(details) : details;
+        
+        switch (action) {
+            case 'create_template':
+                return `Template: <strong>${data.template_name || 'N/A'}</strong>`;
+            case 'deactivate_template':
+                return `Template: <strong>${data.template_name || 'N/A'}</strong>`;
+            case 'upload_attendees':
+            case 'import_attendees':
+                return `Imported <strong>${data.attendee_count || 0} attendees</strong>`;
+            case 'generate_certificate':
+                return `Generated for: <strong>${data.attendee_name || 'N/A'}</strong>`;
+            default:
+                return '';
+        }
+    } catch (e) {
+        return '';
+    }
+}
+
+function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function showError(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.insertBefore(alert, document.body.firstChild);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - CertifyHub{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Settings Header -->
+            <div class="mb-5">
+                <h1 class="h3 fw-bold">
+                    <i class="fas fa-cog text-danger"></i> Account Settings
+                </h1>
+                <p class="text-muted">Manage your account and security preferences</p>
+            </div>
+
+            <!-- Tabs -->
+            <ul class="nav nav-tabs border-bottom" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#profileTab" data-bs-toggle="tab">
+                        <i class="fas fa-user"></i> Profile
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#securityTab" data-bs-toggle="tab">
+                        <i class="fas fa-lock"></i> Security
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content mt-4">
+                <!-- Profile Tab -->
+                <div class="tab-pane fade show active" id="profileTab">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Email Address</label>
+                                <input type="email" class="form-control form-control-lg" id="userEmail" disabled>
+                                <small class="text-muted">Your email cannot be changed</small>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Account Type</label>
+                                <select class="form-select form-select-lg" disabled>
+                                    <option id="accountType">Club Administrator</option>
+                                </select>
+                                <small class="text-muted">Contact support to change your account type</small>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Club Name</label>
+                                <input type="text" class="form-control form-control-lg" id="clubName" disabled>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Member Since</label>
+                                <input type="text" class="form-control form-control-lg" id="memberSince" disabled>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                To update your profile information, please contact your administrator.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Tab -->
+                <div class="tab-pane fade" id="securityTab">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <h6 class="fw-bold mb-4">Change Password</h6>
+
+                            <form id="changePasswordForm" onsubmit="handleChangePassword(event)">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">Current Password</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control form-control-lg" 
+                                               id="currentPassword" required>
+                                        <button type="button" class="btn btn-outline-secondary" 
+                                                onclick="togglePassword('currentPassword')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">New Password</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control form-control-lg" 
+                                               id="newPassword" required>
+                                        <button type="button" class="btn btn-outline-secondary" 
+                                                onclick="togglePassword('newPassword')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">
+                                        Password must be at least 8 characters long
+                                    </small>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">Confirm Password</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control form-control-lg" 
+                                               id="confirmPassword" required>
+                                        <button type="button" class="btn btn-outline-secondary" 
+                                                onclick="togglePassword('confirmPassword')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Password Requirements -->
+                                <div class="alert alert-light border mb-4">
+                                    <small class="fw-bold d-block mb-2">Password Requirements:</small>
+                                    <ul class="mb-0 small">
+                                        <li id="reqLength" class="text-muted">
+                                            <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                                            At least 8 characters
+                                        </li>
+                                        <li id="reqNumber" class="text-muted">
+                                            <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                                            At least one number
+                                        </li>
+                                        <li id="reqUpper" class="text-muted">
+                                            <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                                            At least one uppercase letter
+                                        </li>
+                                        <li id="reqMatch" class="text-muted">
+                                            <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                                            Passwords match
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button type="reset" class="btn btn-outline-secondary flex-grow-1">
+                                        <i class="fas fa-redo"></i> Clear
+                                    </button>
+                                    <button type="submit" class="btn btn-danger flex-grow-1" id="submitBtn">
+                                        <i class="fas fa-save"></i> Change Password
+                                    </button>
+                                </div>
+                            </form>
+
+                            <hr class="my-4">
+
+                            <h6 class="fw-bold mb-3">Two-Factor Authentication</h6>
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <div>
+                                    <p class="mb-1">Secure your account with two-factor authentication</p>
+                                    <small class="text-muted">Not enabled</small>
+                                </div>
+                                <button class="btn btn-outline-secondary btn-sm" disabled>
+                                    <i class="fas fa-lock"></i> Enable 2FA
+                                </button>
+                            </div>
+
+                            <small class="text-muted">Two-factor authentication coming soon</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadUserInfo();
+    
+    // Password validation
+    document.getElementById('newPassword').addEventListener('input', validatePassword);
+    document.getElementById('confirmPassword').addEventListener('input', validatePassword);
+});
+
+async function loadUserInfo() {
+    try {
+        // This would typically come from a user info endpoint
+        // For now, we'll show placeholder data
+        const token = localStorage.getItem('token');
+        
+        // Get email from token (JWT)
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
+        const payload = JSON.parse(jsonPayload);
+        document.getElementById('userEmail').value = payload.sub || 'user@example.com';
+        
+    } catch (error) {
+        console.error('Error loading user info:', error);
+    }
+}
+
+function validatePassword() {
+    const newPass = document.getElementById('newPassword').value;
+    const confirmPass = document.getElementById('confirmPassword').value;
+    
+    // Length check
+    const hasLength = newPass.length >= 8;
+    updateReq('reqLength', hasLength);
+    
+    // Number check
+    const hasNumber = /\d/.test(newPass);
+    updateReq('reqNumber', hasNumber);
+    
+    // Uppercase check
+    const hasUpper = /[A-Z]/.test(newPass);
+    updateReq('reqUpper', hasUpper);
+    
+    // Match check
+    const matches = newPass && newPass === confirmPass;
+    updateReq('reqMatch', matches);
+    
+    // Enable submit if all requirements met
+    const allMet = hasLength && hasNumber && hasUpper && matches && newPass;
+    document.getElementById('submitBtn').disabled = !allMet;
+}
+
+function updateReq(id, met) {
+    const elem = document.getElementById(id);
+    if (met) {
+        elem.classList.remove('text-muted');
+        elem.classList.add('text-success');
+        elem.querySelector('i').className = 'fas fa-check-circle';
+    } else {
+        elem.classList.add('text-muted');
+        elem.classList.remove('text-success');
+        elem.querySelector('i').className = 'fas fa-circle';
+    }
+}
+
+async function handleChangePassword(event) {
+    event.preventDefault();
+    
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    
+    try {
+        const response = await API.auth.changePassword(currentPassword, newPassword);
+        
+        if (response.ok) {
+            showSuccess('Password changed successfully!');
+            document.getElementById('changePasswordForm').reset();
+            validatePassword(); // Reset validation display
+        } else {
+            if (response.data?.detail) {
+                showError(response.data.detail);
+            } else {
+                showError('Failed to change password');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showError('Error changing password');
+    }
+}
+
+function togglePassword(fieldId) {
+    const field = document.getElementById(fieldId);
+    const btn = event.target.closest('button');
+    const icon = btn.querySelector('i');
+    
+    if (field.type === 'password') {
+        field.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        field.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+}
+
+function showError(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.insertBefore(alert, document.body.firstChild);
+}
+
+function showSuccess(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success alert-dismissible fade show';
+    alert.innerHTML = `
+        <i class="fas fa-check-circle"></i> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.insertBefore(alert, document.body.firstChild);
+}
+</script>
+{% endblock %}

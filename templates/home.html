@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CertifyHub - Get Your Certificate</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(120% 120% at 50% 10%, #1f2347 0%, #12142b 45%, #0b0d1f 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #e6e9ff;
+        }
+
+        /* Navigation Bar */
+        nav {
+            background: rgba(9, 10, 26, 0.7);
+            padding: 1rem 2.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #cfd5ff;
+            text-decoration: none;
+            letter-spacing: 0.2px;
+        }
+
+        .logo:hover {
+            color: #fff;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .signin-btn {
+            background: rgba(255, 255, 255, 0.08);
+            color: #cfd5ff;
+            padding: 0.55rem 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            font-size: 0.95rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .signin-btn:hover {
+            transform: translateY(-1px);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 2rem;
+        }
+
+        .container-center {
+            width: 100%;
+            max-width: 900px;
+            text-align: center;
+        }
+
+        .hero-section {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .hero-section h1 {
+            font-size: 3.4rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            color: #e9ecff;
+            letter-spacing: 0.5px;
+        }
+
+        .hero-section p {
+            font-size: 1.2rem;
+            color: #b8c0ff;
+            margin-bottom: 2.5rem;
+        }
+
+        /* Certificate Box */
+        .certificate-box {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: 2.5rem 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+            margin: 0 auto 2rem;
+            max-width: 700px;
+            backdrop-filter: blur(14px);
+        }
+
+        .certificate-icon {
+            font-size: 2.5rem;
+            color: #7b6dff;
+            margin-bottom: 1rem;
+        }
+
+        .certificate-box h2 {
+            color: #e9ecff;
+            font-weight: 700;
+            margin-bottom: 0.8rem;
+        }
+
+        .certificate-box p {
+            color: #c7ceff;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        /* Form Inputs */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Button */
+        .get-cert-btn {
+            padding: 0.9rem 2.5rem;
+            background: linear-gradient(135deg, #5f4bff 0%, #7a5cff 100%);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 12px 30px rgba(95, 75, 255, 0.35);
+        }
+
+        .get-cert-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 35px rgba(95, 75, 255, 0.45);
+        }
+
+        .get-cert-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Success/Error Messages */
+        .alert {
+            border-radius: 8px;
+            border: none;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        /* Loading State */
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                padding: 1rem 1.25rem;
+            }
+
+            .logo {
+                font-size: 1.1rem;
+            }
+
+            .hero-section h1 {
+                font-size: 2.3rem;
+            }
+
+            .hero-section p {
+                font-size: 1rem;
+            }
+
+            .certificate-box {
+                padding: 2rem 1.5rem;
+            }
+        }
+
+        /* Footer */
+        footer {
+            background: rgba(9, 10, 26, 0.7);
+            color: #aeb6ff;
+            text-align: center;
+            padding: 1.5rem;
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.45rem 1rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #cfd5ff;
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .badge-pill i {
+            color: #7b6dff;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav>
+        <a href="/" class="logo">Certificate Portal</a>
+        <div class="nav-buttons">
+            <a href="/login" class="signin-btn">Sign In</a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-center">
+            <div class="badge-pill">
+                <i class="fas fa-check-circle"></i>
+                Official Digital Certification Platform
+            </div>
+            <div class="hero-section">
+                <h1>Certificate Portal</h1>
+                <p>Securely download and verify your official certificates</p>
+            </div>
+            <div class="certificate-box">
+                <div class="certificate-icon">
+                    <i class="fas fa-award"></i>
+                </div>
+                <h2>Get Your Certificate</h2>
+                <p>Click below to access the certificate generator.</p>
+                <button class="get-cert-btn" onclick="window.location.href='/certificate-generator'">
+                    Get Certificate
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2026 CertifyHub. All rights reserved.</p>
+    </footer>
+
+    <script></script>
+</body>
+</html>

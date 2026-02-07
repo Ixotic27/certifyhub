@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Sign In - CertifyHub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+        (function() {
+            const host = window.location.hostname;
+            const port = window.location.port || '8000';
+            if ((host === 'localhost' || host === '127.0.0.1') && host !== '127.0.0.1') {
+                const target = `http://127.0.0.1:${port}${window.location.pathname}${window.location.search}`;
+                window.location.replace(target);
+            }
+        })();
+    </script>
+    <style>
+        body {
+            background: radial-gradient(120% 120% at 50% 10%, #1f2347 0%, #12142b 45%, #0b0d1f 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e6e9ff;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 450px;
+            padding: 1rem;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+            padding: 2.5rem 2rem;
+            backdrop-filter: blur(14px);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-header h1 {
+            font-weight: 800;
+            color: #e9ecff;
+            margin-bottom: 0.5rem;
+            font-size: 1.9rem;
+        }
+
+        .login-header p {
+            color: #b8c0ff;
+            font-size: 0.98rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #cfd5ff;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .form-control {
+            border: 2px solid #2c3158;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+            background: #0f1226;
+            color: #e6e9ff;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #6d6bff;
+            box-shadow: 0 0 0 3px rgba(109, 107, 255, 0.15);
+        }
+
+        .input-group .form-control {
+            border-right: none;
+        }
+
+        .input-group .btn {
+            border: 2px solid #2c3158;
+            border-left: none;
+            background: #0f1226;
+            color: #b8c0ff;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+        }
+
+        .input-group .form-control:focus ~ .btn {
+            border-color: #6d6bff;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 0.85rem;
+            background: linear-gradient(135deg, #5f4bff 0%, #7a5cff 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+            box-shadow: 0 12px 30px rgba(95, 75, 255, 0.35);
+        }
+
+        .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 35px rgba(95, 75, 255, 0.45);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .demo-credentials {
+            background: rgba(255, 255, 255, 0.06);
+            border-left: 4px solid #6d6bff;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-top: 1.5rem;
+            font-size: 0.85rem;
+            color: #cfd5ff;
+        }
+
+        .demo-credentials strong {
+            color: #e6e9ff;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+
+        .back-link a {
+            color: #cfd5ff;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .back-link a:hover {
+            color: #ffffff;
+        }
+
+        .user-type-wrap {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 0.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .user-type-btn {
+            flex: 1;
+            padding: 0.8rem;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            background: transparent;
+            color: #cfd5ff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .user-type-btn.active {
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .alert {
+            border-radius: 8px;
+            border: none;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+
+        .alert-danger {
+            background: rgba(248, 215, 218, 0.15);
+            color: #ffb3ba;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 0.8rem;
+            height: 0.8rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 576px) {
+            .login-card {
+                padding: 2rem 1.5rem;
+            }
+
+            .login-header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <!-- Header -->
+            <div class="login-header">
+                <h1>
+                    <i class="fas fa-lock"></i> Sign In
+                </h1>
+                <p>Access your CertifyHub account</p>
+            </div>
+
+            <!-- User Type Selector -->
+            <div class="user-type-wrap">
+                <button type="button" class="user-type-btn active" data-type="club">
+                    <i class="fas fa-building"></i> Club Admin
+                </button>
+                <button type="button" class="user-type-btn" data-type="platform">
+                    <i class="fas fa-crown"></i> Platform Admin
+                </button>
+            </div>
+
+            <!-- Messages -->
+            <div id="message-container"></div>
+
+            <!-- Login Form -->
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">
+                        <i class="fas fa-envelope"></i> Email Address
+                    </label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        class="form-control" 
+                        placeholder="admin@club.com"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">
+                        <i class="fas fa-key"></i> Password
+                    </label>
+                    <div class="input-group">
+                        <input 
+                            type="password" 
+                            id="password" 
+                            class="form-control" 
+                            placeholder="Enter your password"
+                            required
+                        >
+                        <button type="button" class="btn" onclick="togglePassword()">
+                            <i class="fas fa-eye" id="passwordIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login" id="submitBtn">
+                    <i class="fas fa-sign-in-alt"></i> Sign In
+                </button>
+            </form>
+
+            <!-- Demo Credentials -->
+            <div class="demo-credentials">
+                <strong><i class="fas fa-info-circle"></i> Demo Credentials:</strong><br>
+                <span id="demoEmailLabel">Club Email: </span><strong id="demoEmail">admin@club.com</strong><br>
+                Password: <strong>SecurePass123</strong>
+            </div>
+
+            <!-- Back Link -->
+            <div class="back-link">
+                <a href="/">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedUserType = 'club'; // Default is Club Admin
+
+        // User type buttons
+        document.querySelectorAll('.user-type-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const userType = this.dataset.type;
+                selectedUserType = userType;
+
+                // Update button styles
+                document.querySelectorAll('.user-type-btn').forEach(b => {
+                    if (b.dataset.type === userType) {
+                        b.classList.add('active');
+                    } else {
+                        b.classList.remove('active');
+                    }
+                });
+
+                // Update demo email based on type
+                const demoEmail = document.getElementById('demoEmail');
+                const demoEmailLabel = document.getElementById('demoEmailLabel');
+                if (userType === 'platform') {
+                    demoEmail.textContent = 'platform@certifyhub.com';
+                    demoEmailLabel.textContent = 'Platform Email: ';
+                } else {
+                    demoEmail.textContent = 'admin@club.com';
+                    demoEmailLabel.textContent = 'Club Email: ';
+                }
+            });
+        });
+
+        // Toggle password visibility
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const icon = document.getElementById('passwordIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        // Handle login
+        const loginForm = document.getElementById('loginForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const messageContainer = document.getElementById('message-container');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showMessage('Please fill in all fields', 'danger');
+                return;
+            }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span>Signing in...';
+
+            try {
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Login failed');
+                }
+
+                // Store token
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('token', data.access_token);
+                localStorage.setItem('user_type', data.user_type);
+                sessionStorage.setItem('access_token', data.access_token);
+                sessionStorage.setItem('token', data.access_token);
+                sessionStorage.setItem('user_type', data.user_type);
+                
+                if (data.club_id) {
+                    localStorage.setItem('club_id', data.club_id);
+                    sessionStorage.setItem('club_id', data.club_id);
+                }
+
+                // Force password reset on first login
+                if (data.must_change_password) {
+                    window.location.href = '/reset-password';
+                    return;
+                }
+
+                // Redirect to dashboard
+                if (data.user_type === 'platform_admin') {
+                    window.location.href = '/platform/dashboard';
+                } else {
+                    window.location.href = '/admin/ui/dashboard';
+                }
+            } catch (error) {
+                showMessage(error.message || 'Login failed. Please try again.', 'danger');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+            }
+        });
+
+        function showMessage(text, type) {
+            const alertClass = type === 'danger' ? 'alert-danger' : 'alert-success';
+            const icon = type === 'danger' ? 'fa-exclamation-circle' : 'fa-check-circle';
+            messageContainer.innerHTML = `
+                <div class="alert ${alertClass}">
+                    <i class="fas ${icon}"></i> ${text}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

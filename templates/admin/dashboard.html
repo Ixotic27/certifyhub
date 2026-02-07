@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - CertifyHub{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 fw-bold">
+                <i class="fas fa-chart-line text-danger"></i> Dashboard
+            </h1>
+            <p class="text-muted">Monitor your certificate distribution</p>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <small class="text-muted d-block mb-1">Total Templates</small>
+                            <h3 class="fw-bold mb-0" id="totalTemplates">-</h3>
+                        </div>
+                        <div class="text-danger" style="font-size: 2rem;">
+                            <i class="fas fa-file-certificate"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <small class="text-muted d-block mb-1">Active Attendees</small>
+                            <h3 class="fw-bold mb-0" id="totalAttendees">-</h3>
+                        </div>
+                        <div class="text-success" style="font-size: 2rem;">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <small class="text-muted d-block mb-1">Certificates Generated</small>
+                            <h3 class="fw-bold mb-0" id="certificatesGenerated">-</h3>
+                        </div>
+                        <div class="text-info" style="font-size: 2rem;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <small class="text-muted d-block mb-1">Pending Certificates</small>
+                            <h3 class="fw-bold mb-0" id="pendingCerts">-</h3>
+                        </div>
+                        <div class="text-warning" style="font-size: 2rem;">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Storage Usage -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <h6 class="mb-0"><i class="fas fa-hdd text-primary"></i> Storage Usage</h6>
+                        </div>
+                        <div>
+                            <span id="storageText" class="fw-bold">-</span>
+                            <small class="text-muted">/ 100 MB</small>
+                        </div>
+                    </div>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-danger" id="storageBar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-2">
+                        <small class="text-muted"><i class="fas fa-image"></i> Templates: <span id="templateStorage">-</span></small>
+                        <small class="text-muted"><i class="fas fa-file-csv"></i> CSV Imports: <span id="csvStorage">-</span></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Lists Row -->
+    <div class="row g-4">
+        <!-- Certificate Generation Trend -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-bar text-danger"></i> 7-Day Generation Trend
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="trendChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-lightning-bolt text-warning"></i> Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <a href="/admin/ui/templates/create" class="btn btn-danger w-100 mb-2">
+                        <i class="fas fa-plus"></i> Create Template
+                    </a>
+                    <a href="/admin/ui/attendees" class="btn btn-outline-danger w-100 mb-2">
+                        <i class="fas fa-upload"></i> Manage Attendees
+                    </a>
+                    <a href="/admin/ui/templates" class="btn btn-outline-secondary w-100 mb-2">
+                        <i class="fas fa-file-certificate"></i> View Templates
+                    </a>
+                    <a href="/admin/ui/attendee-lists" class="btn btn-outline-secondary w-100 mb-2">
+                        <i class="fas fa-list"></i> View Attendee Lists
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Downloaded and Activity -->
+    <div class="row g-4 mt-2">
+        <!-- Top Downloaded -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-star text-warning"></i> Top Downloaded Certificates
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="topDownloaded">
+                        <p class="text-muted">Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history text-info"></i> Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="recentActivity">
+                        <p class="text-muted">Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+    
+    // Refresh every 30 seconds
+    setInterval(loadDashboardData, 30000);
+});
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function updateStorageDisplay(usedBytes, limitBytes) {
+    const percentage = Math.min((usedBytes / limitBytes) * 100, 100);
+    const usedMB = (usedBytes / (1024 * 1024)).toFixed(2);
+    const limitMB = (limitBytes / (1024 * 1024)).toFixed(0);
+    
+    document.getElementById('storageText').textContent = `${usedMB} MB / ${limitMB} MB`;
+    
+    const storageBar = document.getElementById('storageBar');
+    storageBar.style.width = percentage + '%';
+    storageBar.setAttribute('aria-valuenow', percentage);
+    
+    // Change color based on usage
+    storageBar.classList.remove('bg-success', 'bg-warning', 'bg-danger');
+    if (percentage >= 90) {
+        storageBar.classList.add('bg-danger');
+    } else if (percentage >= 70) {
+        storageBar.classList.add('bg-warning');
+    } else {
+        storageBar.classList.add('bg-success');
+    }
+}
+
+async function loadDashboardData() {
+    try {
+        const token = localStorage.getItem('token');
+        
+        // Fetch dashboard stats
+        const response = await fetch('/admin/dashboard', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Update stats
+            document.getElementById('totalTemplates').textContent = data.total_templates || 0;
+            document.getElementById('totalAttendees').textContent = data.total_attendees || 0;
+            document.getElementById('certificatesGenerated').textContent = data.certificates_generated || 0;
+            document.getElementById('pendingCerts').textContent = data.never_generated || 0;
+            
+            // Update storage usage
+            updateStorageDisplay(data.storage_used_bytes || 0, data.storage_limit_bytes || 104857600);
+            
+            // Update trend chart
+            if (data.trend_7_days && data.trend_7_days.length > 0) {
+                updateTrendChart(data.trend_7_days);
+            }
+            
+            // Update top downloaded
+            if (data.top_downloaded && data.top_downloaded.length > 0) {
+                updateTopDownloaded(data.top_downloaded);
+            } else {
+                document.getElementById('topDownloaded').innerHTML = 
+                    '<p class="text-muted">No certificates generated yet</p>';
+            }
+            
+            // Load activity logs
+            loadActivityLogs();
+        } else {
+            console.error('Failed to load dashboard data');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+function updateTrendChart(data) {
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    
+    // Parse dates and counts
+    const dates = data.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    const counts = data.map(d => d.count);
+    
+    // Create or update chart
+    if (window.trendChartInstance) {
+        window.trendChartInstance.data.labels = dates;
+        window.trendChartInstance.data.datasets[0].data = counts;
+        window.trendChartInstance.update();
+    } else {
+        window.trendChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Certificates Generated',
+                    data: counts,
+                    backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                    borderColor: '#dc3545',
+                    borderWidth: 2,
+                    borderRadius: 4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                }
+            }
+        });
+    }
+}
+
+function updateTopDownloaded(data) {
+    let html = '<div class="table-responsive"><table class="table table-sm">';
+    data.slice(0, 5).forEach((item, index) => {
+        html += `
+            <tr>
+                <td>
+                    <span class="badge bg-danger me-2">#${index + 1}</span>
+                    <strong>${item.name}</strong><br>
+                    <small class="text-muted">${item.student_id}</small>
+                </td>
+                <td class="text-end">
+                    <span class="badge bg-success">${item.certificate_generated_count} certs</span>
+                </td>
+            </tr>
+        `;
+    });
+    html += '</table></div>';
+    document.getElementById('topDownloaded').innerHTML = html;
+}
+
+async function loadActivityLogs() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/admin/activity-logs?limit=5', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            let html = '<div class="activity-list">';
+            
+            if (data.logs && data.logs.length > 0) {
+                data.logs.forEach(log => {
+                    const date = new Date(log.created_at).toLocaleString();
+                    const actionIcon = getActionIcon(log.action);
+                    html += `
+                        <div class="activity-item mb-3 pb-3 border-bottom">
+                            <div class="d-flex">
+                                <div class="text-danger me-3" style="font-size: 1.25rem;">
+                                    ${actionIcon}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <strong class="d-block">${capitalize(log.action.replace(/_/g, ' '))}</strong>
+                                    <small class="text-muted">${date}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<p class="text-muted">No recent activity</p>';
+            }
+            
+            html += '</div>';
+            document.getElementById('recentActivity').innerHTML = html;
+        }
+    } catch (error) {
+        console.error('Error loading activity logs:', error);
+    }
+}
+
+function getActionIcon(action) {
+    const icons = {
+        'create_template': '<i class="fas fa-file-circle-plus"></i>',
+        'upload_attendees': '<i class="fas fa-user-plus"></i>',
+        'generate_certificate': '<i class="fas fa-certificate"></i>',
+        'deactivate_template': '<i class="fas fa-ban"></i>',
+        'import_attendees': '<i class="fas fa-upload"></i>'
+    };
+    return icons[action] || '<i class="fas fa-bell"></i>';
+}
+
+function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+</script>
+{% endblock %}

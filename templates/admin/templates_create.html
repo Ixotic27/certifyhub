@@ -1,0 +1,540 @@
+{% extends "base.html" %}
+
+{% block title %}Create Certificate Template - CertifyHub{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 fw-bold">
+                <i class="fas fa-file-certificate text-danger"></i> Create Certificate Template
+            </h1>
+            <p class="text-muted">Design your certificate with text fields and custom layout</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Editor Panel -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-image"></i> Certificate Design
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Image Upload -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Certificate Background Image</label>
+                        <div class="upload-box border-2 border-dashed rounded p-4 text-center" id="imageUpload">
+                            <div id="imagePreview">
+                                <i class="fas fa-image" style="font-size: 3rem; color: var(--primary-color);"></i>
+                                <p class="text-muted mt-3">Click to upload or drag and drop</p>
+                            </div>
+                            <img id="uploadedImage" src="" alt="Preview" style="display: none; max-width: 100%; max-height: 400px; border-radius: 8px;">
+                            <input type="file" id="imageFile" accept="image/*" style="display: none;">
+                        </div>
+                    </div>
+
+                    <!-- Preview Canvas with Selection -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Select Name Area (Drag on preview)</label>
+                        <div style="position: relative; background: #f0f0f0; border-radius: 8px; overflow: hidden; width: 100%; aspect-ratio: 4/3;" id="canvasContainer">
+                            <canvas id="previewCanvas" style="display: block; width: 100%; height: 100%; cursor: crosshair;"></canvas>
+                            <canvas id="selectionCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; background: transparent; pointer-events: none;"></canvas>
+                        </div>
+                        <div id="selectionInfo" style="margin-top: 0.5rem; font-size: 0.875rem; color: #666;">
+                            <i class="fas fa-info-circle"></i> Drag to select the name area on the certificate
+                        </div>
+                    </div>
+
+                    <!-- Template Name + Audience -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold">Template Name</label>
+                            <input type="text" class="form-control form-control-lg" id="templateName" 
+                                   placeholder="e.g., Graduation Certificate 2024">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Audience</label>
+                            <select class="form-select form-select-lg" id="templateAudience">
+                                <option value="student" selected>Student / Participant</option>
+                                <option value="management">Management Team</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2">
+                        <a href="/admin/ui/templates" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                        <button type="button" class="btn btn-danger" id="saveBtn">
+                            <i class="fas fa-save"></i> Save Template
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Empty space - removed controls panel -->
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="position-fixed top-0 end-0 p-3" style="z-index: 1100">
+    <div id="successToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-check-circle me-2"></i>
+                <span id="toastMessage">Template saved successfully!</span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Error Toast -->
+<div class="position-fixed top-0 end-0 p-3" style="z-index: 1100; top: 70px !important;">
+    <div id="errorToast" class="toast align-items-center text-bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                <span id="errorToastMessage">An error occurred</span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<style>
+.upload-box {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.upload-box:hover {
+    background-color: #f0f0f0;
+    border-color: var(--primary-color) !important;
+}
+
+.upload-box.drag-over {
+    background-color: #ffe5e5;
+    border-color: var(--primary-color) !important;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+    padding-bottom: 50px;
+}
+</style>
+
+<script src="/static/js/api.js"></script>
+<script>
+let uploadedImage = null;
+let imageFile = null;
+let textFields = [];
+let imageNaturalWidth = 800;
+let imageNaturalHeight = 600;
+let isDrawing = false;
+let startX = 0, startY = 0;
+let imageDataUrl = null;  // Store the image data URL
+let currentTemplateId = null;
+let canvasSizeInitialized = false;
+
+function showToast(message, type = 'success') {
+    if (type === 'success') {
+        document.getElementById('toastMessage').textContent = message;
+        const toast = new bootstrap.Toast(document.getElementById('successToast'), { delay: 3000 });
+        toast.show();
+    } else {
+        document.getElementById('errorToastMessage').textContent = message;
+        const toast = new bootstrap.Toast(document.getElementById('errorToast'), { delay: 4000 });
+        toast.show();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    setupCanvasSize();
+    setupImageUpload();
+    setupCanvasSelection();
+    document.getElementById('saveBtn').addEventListener('click', saveTemplate);
+    drawPreview(); // Initialize preview with placeholder
+    
+    const params = new URLSearchParams(window.location.search);
+    const templateId = params.get('template_id');
+    if (templateId) {
+        currentTemplateId = templateId;
+        loadTemplateForEdit(templateId);
+    }
+
+    // Redraw when window resizes
+    window.addEventListener('resize', debounce(drawPreview, 100));
+});
+
+async function loadTemplateForEdit(templateId) {
+    try {
+        const token = API.getToken();
+        const response = await fetch(`/admin/templates/${templateId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Template not found');
+        }
+
+        const data = await response.json();
+        document.getElementById('templateName').value = data.name || '';
+        document.getElementById('templateAudience').value = data.audience || 'student';
+
+        const rawFields = data.text_fields;
+        textFields = Array.isArray(rawFields) ? rawFields : (rawFields ? JSON.parse(rawFields) : []);
+
+        imageDataUrl = data.template_image_url;
+        const preview = document.getElementById('imagePreview');
+        const img = document.getElementById('uploadedImage');
+        img.src = imageDataUrl;
+        preview.style.display = 'none';
+        img.style.display = 'block';
+
+        const probeImg = new Image();
+        probeImg.onload = () => {
+            imageNaturalWidth = probeImg.naturalWidth || 800;
+            imageNaturalHeight = probeImg.naturalHeight || 600;
+            drawPreview();
+        };
+        probeImg.src = imageDataUrl;
+    } catch (error) {
+        console.error('Error loading template:', error);
+        showToast('Failed to load template for editing', 'error');
+    }
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function setupCanvasSize() {
+    const container = document.getElementById('canvasContainer');
+    const previewCanvas = document.getElementById('previewCanvas');
+    const selectionCanvas = document.getElementById('selectionCanvas');
+    
+    function resizeCanvases() {
+        const rect = container.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height || Math.round(width * 0.75);
+        if (!rect.height) {
+            container.style.height = `${height}px`;
+        }
+        
+        previewCanvas.width = width;
+        previewCanvas.height = height;
+        selectionCanvas.width = width;
+        selectionCanvas.height = height;
+        
+        drawPreview();
+    }
+    
+    resizeCanvases();
+    if (!canvasSizeInitialized) {
+        window.addEventListener('resize', () => resizeCanvases());
+        canvasSizeInitialized = true;
+    }
+}
+
+function setupImageUpload() {
+    const imageUpload = document.getElementById('imageUpload');
+    const imageFile = document.getElementById('imageFile');
+    
+    imageUpload.addEventListener('click', () => imageFile.click());
+    
+    imageFile.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleImageSelect(e.target.files[0]);
+        }
+    });
+    
+    imageUpload.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        imageUpload.classList.add('drag-over');
+    });
+    
+    imageUpload.addEventListener('dragleave', () => {
+        imageUpload.classList.remove('drag-over');
+    });
+    
+    imageUpload.addEventListener('drop', (e) => {
+        e.preventDefault();
+        imageUpload.classList.remove('drag-over');
+        if (e.dataTransfer.files.length > 0) {
+            handleImageSelect(e.dataTransfer.files[0]);
+        }
+    });
+}
+
+function handleImageSelect(file) {
+    imageFile = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        imageDataUrl = e.target.result;  // Store the data URL
+        
+        // Show image
+        const preview = document.getElementById('imagePreview');
+        const img = document.getElementById('uploadedImage');
+        img.src = imageDataUrl;
+        preview.style.display = 'none';
+        img.style.display = 'block';
+        
+        const probeImg = new Image();
+        probeImg.onload = () => {
+            imageNaturalWidth = probeImg.naturalWidth || 800;
+            imageNaturalHeight = probeImg.naturalHeight || 600;
+            setupCanvasSize();
+            drawPreview();
+        };
+        probeImg.src = imageDataUrl;
+    };
+    reader.readAsDataURL(file);
+}
+
+function setupCanvasSelection() {
+    const previewCanvas = document.getElementById('previewCanvas');
+    const selectionCanvas = document.getElementById('selectionCanvas');
+    
+    previewCanvas.addEventListener('mousedown', (e) => {
+        isDrawing = true;
+        const rect = previewCanvas.getBoundingClientRect();
+        const scaleX = previewCanvas.width / rect.width;
+        const scaleY = previewCanvas.height / rect.height;
+        startX = (e.clientX - rect.left) * scaleX;
+        startY = (e.clientY - rect.top) * scaleY;
+    });
+    
+    previewCanvas.addEventListener('mousemove', (e) => {
+        if (!isDrawing) return;
+        const rect = previewCanvas.getBoundingClientRect();
+        const scaleX = previewCanvas.width / rect.width;
+        const scaleY = previewCanvas.height / rect.height;
+        const currentX = (e.clientX - rect.left) * scaleX;
+        const currentY = (e.clientY - rect.top) * scaleY;
+        
+        // Redraw selection only on the overlay canvas
+        const ctx = selectionCanvas.getContext('2d');
+        ctx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+        
+        ctx.strokeStyle = 'rgba(220, 53, 69, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(
+            Math.min(startX, currentX),
+            Math.min(startY, currentY),
+            Math.abs(currentX - startX),
+            Math.abs(currentY - startY)
+        );
+        ctx.setLineDash([]);
+    });
+    
+    previewCanvas.addEventListener('mouseup', (e) => {
+        if (!isDrawing) return;
+        isDrawing = false;
+        
+        const rect = previewCanvas.getBoundingClientRect();
+        const scaleX = previewCanvas.width / rect.width;
+        const scaleY = previewCanvas.height / rect.height;
+        const endX = (e.clientX - rect.left) * scaleX;
+        const endY = (e.clientY - rect.top) * scaleY;
+        
+        const selectionW = Math.abs(endX - startX);
+        const selectionH = Math.abs(endY - startY);
+        
+        // Validate minimum size
+        if (selectionW < 10 || selectionH < 10) {
+            selectionCanvas.getContext('2d').clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+            return;
+        }
+        
+        // Convert from canvas coordinates to image native coordinates
+        const imageScaleX = imageNaturalWidth / previewCanvas.width;
+        const imageScaleY = imageNaturalHeight / previewCanvas.height;
+        
+        const centerX = (Math.min(startX, endX) + selectionW / 2) * imageScaleX;
+        const centerY = (Math.min(startY, endY) + selectionH / 2) * imageScaleY;
+        const underlineWidth = selectionW * imageScaleX;
+        const fontSize = Math.max(20, Math.round(selectionH * imageScaleY * 0.6));
+        
+        // Create name field
+        textFields = textFields.filter(f => f.field_type !== 'name');
+        textFields.push({
+            id: Date.now(),
+            field_type: 'name',
+            field_name: 'Recipient Name',
+            x: Math.round(centerX),
+            y: Math.round(centerY),
+            font_size: fontSize,
+            font_color: '#000000',
+            font_family: 'Arial',
+            align: 'center',
+            underline_width: Math.round(underlineWidth)
+        });
+        
+        // Clear selection canvas and redraw preview
+        selectionCanvas.getContext('2d').clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+        document.getElementById('selectionInfo').innerHTML = '<i class="fas fa-check-circle text-success"></i> Name area selected successfully!';
+        drawPreview();
+    });
+}
+
+function drawPreview() {
+    const canvas = document.getElementById('previewCanvas');
+    const ctx = canvas.getContext('2d');
+
+    if (!canvas.width || !canvas.height) {
+        setupCanvasSize();
+        return;
+    }
+    
+    // Clear canvas with background color
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw image if uploaded
+    if (imageDataUrl) {
+        const img = new Image();
+        img.onload = () => {
+            // Clear canvas again before drawing image
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            drawTextFields(ctx, canvas);
+        };
+        img.onerror = () => {
+            ctx.fillStyle = '#e0e0e0';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Failed to load image', canvas.width / 2, canvas.height / 2);
+        };
+        img.src = imageDataUrl;
+    } else {
+        // Show placeholder
+        ctx.fillStyle = '#e0e0e0';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Upload certificate background image', canvas.width / 2, canvas.height / 2);
+    }
+}
+
+function drawTextFields(ctx, canvas) {
+    const scaleX = canvas.width / imageNaturalWidth;
+    const scaleY = canvas.height / imageNaturalHeight;
+
+    textFields.forEach(field => {
+        const x = field.x * scaleX;
+        const y = field.y * scaleY;
+        const fontSize = field.font_size * scaleY;
+        
+        ctx.font = `${fontSize}px Arial`;
+        ctx.fillStyle = field.font_color || '#000000';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(field.field_name, x, y);
+
+        if (field.underline_width) {
+            const underlineWidth = field.underline_width * scaleX;
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x - underlineWidth / 2, y + (fontSize * 0.6));
+            ctx.lineTo(x + underlineWidth / 2, y + (fontSize * 0.6));
+            ctx.stroke();
+        }
+        
+        // Draw position indicator
+        ctx.fillStyle = 'rgba(220, 53, 69, 0.3)';
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, 2 * Math.PI);
+        ctx.fill();
+    });
+}
+
+
+async function saveTemplate() {
+    const name = document.getElementById('templateName').value.trim();
+    
+    if (!name) {
+        showToast('Please enter a template name', 'error');
+        return;
+    }
+    
+    if (!imageFile && !imageDataUrl) {
+        showToast('Please upload a certificate background image', 'error');
+        return;
+    }
+    
+    if (textFields.length === 0 || !textFields.some(f => f.field_type === 'name')) {
+        showToast('Please select the name area on the certificate', 'error');
+        return;
+    }
+
+    try {
+        const audience = document.getElementById('templateAudience').value;
+
+        if (currentTemplateId) {
+            const response = await API.admin.updateTemplateCoordinates(currentTemplateId, textFields);
+            if (!response) {
+                showToast('Session expired. Please log in again.', 'error');
+                return;
+            }
+            if (response.ok) {
+                showToast('Template updated and saved successfully!', 'success');
+                setTimeout(() => { window.location.href = '/admin/ui/templates'; }, 1500);
+            } else {
+                showToast(response.data?.detail || 'Failed to update template', 'error');
+            }
+            return;
+        }
+
+        const response = await API.admin.createTemplate(
+            name,
+            imageFile,
+            textFields,
+            audience
+        );
+        
+        if (!response) {
+            showToast('Session expired. Please log in again.', 'error');
+            return;
+        }
+
+        if (response.ok) {
+            showToast('Template created and saved successfully!', 'success');
+            setTimeout(() => { window.location.href = '/admin/ui/templates'; }, 1500);
+        } else {
+            const detail = response.data?.detail || response.data || 'Failed to create template';
+            showToast(detail, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error: ' + error.message, 'error');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}Attendee Lists - CertifyHub{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-bold">
+                    <i class="fas fa-list-alt text-danger"></i> Attendee Lists
+                </h1>
+                <p class="text-muted">View all uploaded CSV files and their contents</p>
+            </div>
+            <a href="/admin/ui/attendees" class="btn btn-danger btn-lg">
+                <i class="fas fa-upload"></i> Import New List
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter and Sort -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <label class="form-label fw-bold">Sort By</label>
+            <select class="form-select" id="sortBy" onchange="sortLists()">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="count-high">Most Records</option>
+                <option value="count-low">Least Records</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-bold">Filter by Role</label>
+            <select class="form-select" id="filterRole" onchange="filterLists()">
+                <option value="">All Roles</option>
+                <option value="student">Student</option>
+                <option value="management">Management</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-bold">Search</label>
+            <input type="text" class="form-control" id="searchInput" placeholder="Search by filename..." oninput="filterLists()">
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="d-block mb-1 opacity-75">Total Lists</small>
+                            <h2 class="fw-bold mb-0" id="totalLists">-</h2>
+                        </div>
+                        <i class="fas fa-file-csv" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="d-block mb-1 opacity-75">Total Records</small>
+                            <h2 class="fw-bold mb-0" id="totalRecords">-</h2>
+                        </div>
+                        <i class="fas fa-users" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="d-block mb-1 opacity-75">Latest Upload</small>
+                            <h5 class="fw-bold mb-0" id="latestUpload">-</h5>
+                        </div>
+                        <i class="fas fa-clock" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lists Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-table"></i> All Uploaded Lists</h5>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="loadLists()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Filename / Batch Name</th>
+                                    <th>Role</th>
+                                    <th>Records</th>
+                                    <th>Uploaded</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="listsTable">
+                                <tr>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="spinner-border text-danger" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye"></i> Preview: <span id="previewTitle">-</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="background-color: #fff;">
+                <div class="mb-3">
+                    <span class="badge bg-info me-2" id="previewRole">-</span>
+                    <span class="badge bg-secondary" id="previewCount">0 records</span>
+                </div>
+                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                    <table class="table table-sm table-bordered table-striped mb-0">
+                        <thead>
+                            <tr style="background-color: #343a40 !important;">
+                                <th style="width: 50px; color: white !important; background-color: #343a40 !important;">#</th>
+                                <th style="color: white !important; background-color: #343a40 !important;">Name</th>
+                                <th style="color: white !important; background-color: #343a40 !important;">Student ID</th>
+                                <th style="color: white !important; background-color: #343a40 !important;">Email</th>
+                                <th style="color: white !important; background-color: #343a40 !important;">Course</th>
+                                <th style="color: white !important; background-color: #343a40 !important;">Role</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewTable">
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="spinner-border text-danger" role="status"></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+let allLists = [];
+let filteredLists = [];
+
+document.addEventListener('DOMContentLoaded', async function() {
+    const authOk = await verifyAuth();
+    if (!authOk) return;
+    loadLists();
+});
+
+async function verifyAuth() {
+    const response = await API.request('/auth/me');
+    if (!response || !response.ok) {
+        window.location.href = '/login';
+        return false;
+    }
+    if (response.data?.user_type !== 'club_admin') {
+        alert('Access denied. Please log in with a club admin account.');
+        window.location.href = '/login';
+        return false;
+    }
+    return true;
+}
+
+async function loadLists() {
+    try {
+        const response = await API.request('/admin/attendees/imports');
+        
+        if (!response || !response.ok) {
+            showError('Failed to load attendee lists');
+            return;
+        }
+        
+        allLists = response.data?.imports || [];
+        
+        // Update stats
+        document.getElementById('totalLists').textContent = allLists.length;
+        
+        const totalRecords = allLists.reduce((sum, l) => sum + (l.rows_count || 0), 0);
+        document.getElementById('totalRecords').textContent = totalRecords;
+        
+        if (allLists.length > 0) {
+            const latest = new Date(allLists[0].uploaded_at).toLocaleDateString();
+            document.getElementById('latestUpload').textContent = latest;
+        } else {
+            document.getElementById('latestUpload').textContent = 'No uploads yet';
+        }
+        
+        filterLists();
+    } catch (error) {
+        console.error('Error:', error);
+        showError('Error loading lists');
+    }
+}
+
+function filterLists() {
+    const role = document.getElementById('filterRole').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    
+    filteredLists = allLists.filter(list => {
+        if (role && list.role !== role) return false;
+        if (search && !list.filename.toLowerCase().includes(search)) return false;
+        return true;
+    });
+    
+    sortLists();
+}
+
+function sortLists() {
+    const sortBy = document.getElementById('sortBy').value;
+    
+    filteredLists.sort((a, b) => {
+        switch (sortBy) {
+            case 'newest':
+                return new Date(b.uploaded_at) - new Date(a.uploaded_at);
+            case 'oldest':
+                return new Date(a.uploaded_at) - new Date(b.uploaded_at);
+            case 'name-asc':
+                return a.filename.localeCompare(b.filename);
+            case 'name-desc':
+                return b.filename.localeCompare(a.filename);
+            case 'count-high':
+                return (b.rows_count || 0) - (a.rows_count || 0);
+            case 'count-low':
+                return (a.rows_count || 0) - (b.rows_count || 0);
+            default:
+                return 0;
+        }
+    });
+    
+    renderLists();
+}
+
+function renderLists() {
+    const tbody = document.getElementById('listsTable');
+    
+    if (filteredLists.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-5">
+                    <i class="fas fa-inbox text-muted" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-3">No attendee lists found</p>
+                    <a href="/admin/ui/attendees" class="btn btn-danger">
+                        <i class="fas fa-upload"></i> Import Your First List
+                    </a>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = filteredLists.map((list, idx) => {
+        const uploadDate = new Date(list.uploaded_at).toLocaleString();
+        const roleBadge = list.role === 'management' 
+            ? '<span class="badge bg-warning text-dark">Management</span>'
+            : '<span class="badge bg-info">Student</span>';
+        
+        return `
+            <tr>
+                <td><strong>${idx + 1}</strong></td>
+                <td>
+                    <i class="fas fa-file-csv text-success me-2"></i>
+                    <strong>${escapeHtml(list.filename)}</strong>
+                </td>
+                <td>${roleBadge}</td>
+                <td><span class="badge bg-secondary">${list.rows_count || 0}</span></td>
+                <td><small class="text-muted">${uploadDate}</small></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="previewList('${list.id}', '${escapeHtml(list.filename)}', '${list.role}')">
+                        <i class="fas fa-eye"></i> Preview
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function previewList(listId, filename, role) {
+    document.getElementById('previewTitle').textContent = filename;
+    document.getElementById('previewRole').textContent = role;
+    document.getElementById('previewRole').className = role === 'management' ? 'badge bg-warning text-dark me-2' : 'badge bg-info me-2';
+    document.getElementById('previewTable').innerHTML = `
+        <tr>
+            <td colspan="6" class="text-center py-4">
+                <div class="spinner-border text-danger" role="status"></div>
+                <p class="mt-2 text-muted">Loading preview...</p>
+            </td>
+        </tr>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+    
+    try {
+        const response = await API.request(`/admin/attendees/imports/${listId}/rows?limit=100`);
+        
+        if (!response || !response.ok) {
+            document.getElementById('previewTable').innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-danger">
+                        <i class="fas fa-exclamation-circle"></i> Failed to load preview
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        const rows = response.data?.rows || [];
+        document.getElementById('previewCount').textContent = `${rows.length} records`;
+        
+        if (rows.length === 0) {
+            document.getElementById('previewTable').innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                        <i class="fas fa-inbox"></i> No records found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        document.getElementById('previewTable').innerHTML = rows.map((row, idx) => `
+            <tr style="background-color: #fff;">
+                <td style="color: #212529;">${idx + 1}</td>
+                <td style="color: #212529;"><strong>${escapeHtml(row.name || '-')}</strong></td>
+                <td style="color: #212529; font-family: monospace;">${escapeHtml(row.student_id || '-')}</td>
+                <td style="color: #212529;">${escapeHtml(row.email || '-')}</td>
+                <td style="color: #212529;">${escapeHtml(row.course || '-')}</td>
+                <td><span class="badge bg-info">${escapeHtml(row.role || 'student')}</span></td>
+            </tr>
+        `).join('');
+        
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('previewTable').innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4 text-danger">
+                    <i class="fas fa-exclamation-circle"></i> Error loading preview
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+function showError(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+    alert.style.zIndex = '9999';
+    alert.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+    setTimeout(() => alert.remove(), 5000);
+}
+</script>
+{% endblock %}

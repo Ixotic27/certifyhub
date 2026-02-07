@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Platform Admin Dashboard - CertifyHub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(120% 120% at 50% 10%, #1f2347 0%, #12142b 45%, #0b0d1f 100%);
+            min-height: 100vh;
+            color: #e6e9ff;
+            display: flex;
+            flex-direction: column;
+        }
+        nav {
+            background: rgba(9, 10, 26, 0.7);
+            padding: 1rem 2.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #cfd5ff;
+            text-decoration: none;
+            letter-spacing: 0.2px;
+        }
+        .signout-btn {
+            background: rgba(255, 255, 255, 0.08);
+            color: #cfd5ff;
+            padding: 0.55rem 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            backdrop-filter: blur(8px);
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 2rem;
+        }
+        .container-center {
+            width: 100%;
+            max-width: 900px;
+            text-align: center;
+        }
+        .hero-section h1 {
+            font-size: 2.6rem;
+            font-weight: 800;
+            margin-bottom: 0.75rem;
+            color: #e9ecff;
+        }
+        .hero-section p {
+            font-size: 1.1rem;
+            color: #b8c0ff;
+            margin-bottom: 2.5rem;
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: left;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(14px);
+        }
+
+        .stat-label {
+            color: #b8c0ff;
+            font-size: 0.9rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #e9ecff;
+        }
+
+        .stat-icon {
+            color: #7b6dff;
+            font-size: 1.5rem;
+            float: right;
+        }
+        .panel {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: 2rem 1.5rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(14px);
+            text-align: left;
+        }
+        .panel h3 { color: #e9ecff; font-weight: 700; margin-bottom: 0.5rem; }
+        .panel p { color: #c7ceff; margin-bottom: 1rem; }
+        .panel a {
+            display: inline-block;
+            margin-top: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            background: linear-gradient(135deg, #5f4bff 0%, #7a5cff 100%);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 700;
+            box-shadow: 0 12px 30px rgba(95, 75, 255, 0.35);
+        }
+        footer {
+            background: rgba(9, 10, 26, 0.7);
+            color: #aeb6ff;
+            text-align: center;
+            padding: 1.5rem;
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/" class="logo">Certificate Portal</a>
+        <a href="/" class="signout-btn">Home</a>
+    </nav>
+
+    <div class="main-content">
+        <div class="container-center">
+            <div class="hero-section">
+                <h1>Platform Admin Dashboard</h1>
+                <p>Platform-wide overview and management</p>
+            </div>
+
+            <div class="card-grid">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-building"></i></div>
+                    <div class="stat-label">Total Clubs</div>
+                    <div class="stat-value" id="totalClubs">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-user-shield"></i></div>
+                    <div class="stat-label">Platform Admins</div>
+                    <div class="stat-value" id="platformAdmins">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                    <div class="stat-label">Club Admins</div>
+                    <div class="stat-value" id="clubAdmins">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-file-certificate"></i></div>
+                    <div class="stat-label">Templates</div>
+                    <div class="stat-value" id="templates">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-user-graduate"></i></div>
+                    <div class="stat-label">Attendees</div>
+                    <div class="stat-value" id="attendees">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-award"></i></div>
+                    <div class="stat-label">Certificates Generated</div>
+                    <div class="stat-value" id="certificates">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-eye"></i></div>
+                    <div class="stat-label">Total Visits</div>
+                    <div class="stat-value" id="totalVisits">0</div>
+                </div>
+            </div>
+
+            <div class="card-grid">
+                <div class="panel">
+                    <h3><i class="fas fa-building"></i> Clubs</h3>
+                    <p>Create and manage clubs across the platform.</p>
+                    <a href="/platform/ui/clubs">Manage Clubs</a>
+                </div>
+                <div class="panel">
+                    <h3><i class="fas fa-users-cog"></i> Club Admins</h3>
+                    <p>Invite and manage club administrators.</p>
+                    <a href="/platform/ui/admins">Manage Admins</a>
+                </div>
+                <div class="panel">
+                    <h3><i class="fas fa-chart-line"></i> Analytics</h3>
+                    <p>View platform-wide usage and performance.</p>
+                    <a href="/platform/ui/analytics">View Analytics</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 CertifyHub. All rights reserved.</p>
+    </footer>
+
+    <script>
+        async function loadPlatformAnalytics() {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            try {
+                const res = await fetch('/platform/analytics', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+
+                document.getElementById('totalClubs').textContent = data.total_clubs ?? '-';
+                document.getElementById('platformAdmins').textContent = data.platform_admins ?? '-';
+                document.getElementById('clubAdmins').textContent = data.club_admins ?? '-';
+                document.getElementById('templates').textContent = data.templates ?? '-';
+                document.getElementById('attendees').textContent = data.attendees ?? '-';
+                document.getElementById('certificates').textContent = data.certificates ?? '-';
+            } catch (err) {
+                // silent fail
+            }
+        }
+
+        loadPlatformAnalytics();
+    </script>
+</body>
+</html>

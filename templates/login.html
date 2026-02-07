@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - CertifyHub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .login-container {
+            width: 100%;
+            max-width: 450px;
+            padding: 1rem;
+        }
+        .login-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 2.5rem 2rem;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .login-header h1 {
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 0.5rem;
+        }
+        .login-header p {
+            color: #6c757d;
+            font-size: 0.95rem;
+        }
+        .form-control, .btn {
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+        }
+        .form-control {
+            border: 1px solid #dee2e6;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+        }
+        .input-group .form-control {
+            border-right: none;
+        }
+        .input-group .input-group-text {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            color: #6c757d;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            border: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+        .password-toggle {
+            cursor: pointer;
+        }
+        .demo-info {
+            background-color: #f0f0f0;
+            border-left: 4px solid #dc3545;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1.5rem;
+        }
+        .demo-info h6 {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #1a1a2e;
+        }
+        .demo-info p {
+            margin: 0.25rem 0;
+            font-size: 0.9rem;
+            color: #495057;
+        }
+        .form-label {
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 0.5rem;
+        }
+        .login-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #dee2e6;
+        }
+        .login-footer p {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+<div class="min-vh-100 d-flex align-items-center justify-content-center bg-gradient">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card shadow-lg border-0">
+                    <div class="card-body p-5">
+                        <!-- Header -->
+                        <div class="text-center mb-4">
+                            <div class="display-6 text-danger mb-2">
+                                <i class="fas fa-certificate"></i>
+                            </div>
+                            <h1 class="h3 fw-bold">CertifyHub</h1>
+                            <p class="text-muted">Certificate Management Platform</p>
+                        </div>
+
+                        <!-- Login Form -->
+                        <form id="loginForm">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email Address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0">
+                                        <i class="fas fa-envelope text-muted"></i>
+                                    </span>
+                                    <input type="email" class="form-control border-start-0" id="email" 
+                                           name="email" placeholder="admin@club.com" required autofocus>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="password" class="form-label">Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0">
+                                        <i class="fas fa-lock text-muted"></i>
+                                    </span>
+                                    <input type="password" class="form-control border-start-0" id="password" 
+                                           name="password" placeholder="••••••••" required>
+                                    <button class="btn btn-light border-start-0" type="button" 
+                                            onclick="togglePassword()">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-danger w-100 py-2 fw-bold">
+                                <i class="fas fa-sign-in-alt"></i> Sign In
+                            </button>
+                        </form>
+
+                        <!-- Divider -->
+                        <div class="my-4">
+                            <hr class="text-muted">
+                            <small class="text-muted d-block text-center">Demo Credentials</small>
+                        </div>
+
+                        <!-- Demo Info -->
+                        <div class="alert alert-info alert-sm" role="alert">
+                            <small>
+                                <strong>Club Admin:</strong> admin@club.com / password<br>
+                                <strong>Platform Admin:</strong> admin@certifyhub.com / password
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Text -->
+                <p class="text-center text-muted mt-4">
+                    <small>Secure certificate distribution platform for educational institutions</small>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
+    .card {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .input-group-text {
+        border: 1px solid #dee2e6;
+    }
+    
+    .form-control:focus {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+    
+    .btn-danger:hover {
+        background-color: #c82333;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    }
+    
+    .alert-sm {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+</style>
+
+<script>
+function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const icon = event.currentTarget.querySelector('i');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
+    
+    try {
+        const response = await fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.detail || 'Login failed');
+        }
+        
+        // Store token
+        localStorage.setItem('token', data.access_token);
+        
+        // Check if password reset is required
+        if (data.must_change_password) {
+            window.location.href = '/reset-password';
+            return;
+        }
+        
+        // Redirect based on user type
+        if (data.user_type === 'platform_admin') {
+            window.location.href = '/platform/ui/dashboard';
+        } else {
+            window.location.href = '/admin/ui/dashboard';
+        }
+    } catch (error) {
+        // Show error
+        let errorDiv = document.getElementById('loginError');
+        if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.id = 'loginError';
+            errorDiv.className = 'alert alert-danger mt-3';
+            this.appendChild(errorDiv);
+        }
+        errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + error.message;
+        errorDiv.style.display = 'block';
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+});
+</script>
+{% endblock %}

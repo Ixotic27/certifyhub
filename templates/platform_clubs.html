@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Clubs - CertifyHub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(120% 120% at 50% 10%, #1f2347 0%, #12142b 45%, #0b0d1f 100%);
+            min-height: 100vh; color: #e6e9ff; display: flex; flex-direction: column;
+        }
+        nav {
+            background: rgba(9, 10, 26, 0.7); padding: 1rem 2.5rem;
+            display: flex; justify-content: space-between; align-items: center;
+            backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .logo { color: #cfd5ff; text-decoration: none; font-weight: 700; font-size: 1.1rem; }
+        .back-btn {
+            background: rgba(255,255,255,0.08); color: #cfd5ff; padding: 0.55rem 1.25rem;
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+            text-decoration: none; font-weight: 700; transition: all 0.2s;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+        .main-content { flex: 1; padding: 2rem 2.5rem; }
+        .panel {
+            background: rgba(16,18,40,0.7); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px; padding: 2rem; box-shadow: 0 20px 55px rgba(0,0,0,0.4);
+            backdrop-filter: blur(16px);
+        }
+        .page-title { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.25rem; }
+        .page-subtitle { color: #b8c0ff; margin-bottom: 1rem; font-size: 0.95rem; }
+        .form-control, .form-select {
+            background: #0f1226 !important; border: 1px solid rgba(255,255,255,0.15);
+            color: #e6e9ff !important; border-radius: 10px;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #6d6bff; box-shadow: 0 0 0 3px rgba(109,107,255,0.15);
+        }
+        .form-control::placeholder { color: #6c7293; }
+        .btn-create {
+            background: linear-gradient(135deg, #5f4bff 0%, #7a5cff 100%);
+            border: none; font-weight: 700; color: #fff; border-radius: 10px; padding: 0.6rem 1.5rem;
+        }
+        .btn-create:hover { box-shadow: 0 8px 25px rgba(95,75,255,0.4); transform: translateY(-1px); color: #fff; }
+        .club-card {
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px; padding: 1.25rem; transition: all 0.2s;
+        }
+        .club-card:hover { border-color: rgba(109,107,255,0.3); background: rgba(255,255,255,0.06); }
+        .club-card .club-name { font-weight: 700; font-size: 1.1rem; color: #e6e9ff; }
+        .club-card .club-slug { color: #8b93c7; font-size: 0.85rem; font-family: monospace; }
+        .club-card .club-email { color: #b8c0ff; font-size: 0.88rem; }
+        .club-stat {
+            display: inline-flex; align-items: center; gap: 0.3rem;
+            font-size: 0.8rem; color: #8b93c7; margin-right: 0.8rem;
+        }
+        .club-stat i { font-size: 0.7rem; }
+        .badge-active { background: rgba(25,135,84,0.2); color: #75d6a0; border: 1px solid rgba(25,135,84,0.3); }
+        .badge-inactive { background: rgba(220,53,69,0.15); color: #ff8a97; border: 1px solid rgba(220,53,69,0.25); }
+        .badge-status { padding: 0.3rem 0.65rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+        .action-btn {
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+            color: #cfd5ff; border-radius: 8px; padding: 0.35rem 0.7rem; font-size: 0.8rem;
+            cursor: pointer; transition: all 0.2s; font-weight: 600; text-decoration: none;
+        }
+        .action-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        .action-btn.btn-delete { color: #ff6b6b; border-color: rgba(220,53,69,0.3); }
+        .action-btn.btn-delete:hover { background: rgba(220,53,69,0.15); }
+        .action-btn.btn-reactivate { color: #75d6a0; border-color: rgba(25,135,84,0.3); }
+        .action-btn.btn-reactivate:hover { background: rgba(25,135,84,0.15); }
+        .search-bar { position: relative; }
+        .search-bar i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6c7293; }
+        .search-bar input { padding-left: 2.2rem; }
+        .stats-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .stat-card {
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; padding: 1rem 1.25rem; flex: 1; min-width: 140px; text-align: center;
+        }
+        .stat-card .stat-number { font-size: 1.6rem; font-weight: 800; color: #e6e9ff; }
+        .stat-card .stat-label { font-size: 0.8rem; color: #8b93c7; }
+        .filter-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .filter-tab {
+            padding: 0.4rem 1rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: #8b93c7;
+            transition: all 0.2s;
+        }
+        .filter-tab.active { background: rgba(109,107,255,0.2); color: #cfd5ff; border-color: rgba(109,107,255,0.4); }
+        .filter-tab:hover { color: #cfd5ff; }
+        .empty-state { text-align: center; padding: 3rem; color: #6c7293; }
+        .empty-state i { font-size: 2.5rem; margin-bottom: 1rem; display: block; }
+        .alert { border-radius: 10px; border: none; }
+        .alert-danger { background: rgba(248,215,218,0.12); color: #ffb3ba; }
+        .alert-success { background: rgba(212,237,218,0.12); color: #a3d9b1; }
+        .modal-content {
+            background: #1a1d3a; border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px; color: #e6e9ff;
+        }
+        .modal-header { border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .modal-footer { border-top: 1px solid rgba(255,255,255,0.08); }
+        .btn-close { filter: invert(1); }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/platform/dashboard" class="logo"><i class="fas fa-certificate me-2"></i>CertifyHub</a>
+        <a href="/platform/dashboard" class="back-btn"><i class="fas fa-arrow-left me-1"></i> Dashboard</a>
+    </nav>
+
+    <div class="main-content">
+        <div class="panel">
+            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
+                <div>
+                    <h1 class="page-title"><i class="fas fa-building me-2"></i>Manage Clubs</h1>
+                    <p class="page-subtitle mb-0">Create, manage, and control all registered clubs.</p>
+                </div>
+                <button class="btn btn-create" data-bs-toggle="modal" data-bs-target="#createClubModal">
+                    <i class="fas fa-plus me-1"></i> New Club
+                </button>
+            </div>
+
+            <div id="messageBox" class="mb-3"></div>
+
+            <!-- Stats -->
+            <div class="stats-row">
+                <div class="stat-card"><div class="stat-number" id="totalClubs">-</div><div class="stat-label">Total Clubs</div></div>
+                <div class="stat-card"><div class="stat-number" id="activeClubs">-</div><div class="stat-label">Active</div></div>
+                <div class="stat-card"><div class="stat-number" id="inactiveClubs">-</div><div class="stat-label">Inactive</div></div>
+            </div>
+
+            <!-- Search & Filter -->
+            <div class="d-flex flex-column flex-md-row gap-3 mb-3">
+                <div class="search-bar flex-grow-1">
+                    <i class="fas fa-search"></i>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search clubs by name, slug, or email...">
+                </div>
+            </div>
+            <div class="filter-tabs">
+                <button class="filter-tab active" data-filter="all">All</button>
+                <button class="filter-tab" data-filter="active">Active</button>
+                <button class="filter-tab" data-filter="inactive">Inactive</button>
+            </div>
+
+            <!-- Clubs List -->
+            <div id="clubsList" class="d-flex flex-column gap-3">
+                <div class="empty-state"><i class="fas fa-spinner fa-spin"></i>Loading clubs...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Club Modal -->
+    <div class="modal fade" id="createClubModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Create New Club</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Club Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="clubName" placeholder="e.g., Computer Science Club">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Slug <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="clubSlug" placeholder="e.g., cs-club">
+                        <small style="color: #6c7293;">URL identifier. Lowercase letters, numbers, hyphens only.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contact Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="clubEmail" placeholder="club@institution.edu">
+                    </div>
+                    <div id="createError" class="alert alert-danger d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-create" id="createClubBtn">
+                        <i class="fas fa-plus"></i> Create Club
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header" style="border-bottom-color: rgba(220,53,69,0.2);">
+                    <h5 class="modal-title text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Permanently Delete Club</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>You are about to <strong class="text-danger">permanently delete</strong> the club:</p>
+                    <div class="p-3 rounded mb-3" style="background: rgba(220,53,69,0.1); border: 1px solid rgba(220,53,69,0.2);">
+                        <strong id="deleteClubName">-</strong>
+                    </div>
+                    <p class="text-danger mb-2"><i class="fas fa-exclamation-circle"></i> This will permanently remove:</p>
+                    <ul style="font-size: 0.9rem; color: #ff8a97;">
+                        <li>All club administrators</li>
+                        <li>All certificate templates</li>
+                        <li>All attendee data & CSV imports</li>
+                        <li>All generated certificates</li>
+                    </ul>
+                    <p class="fw-bold">Type the club name to confirm:</p>
+                    <input type="text" class="form-control" id="deleteConfirmInput" placeholder="Type club name here">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn" disabled>
+                        <i class="fas fa-trash"></i> Delete Permanently
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script>
+        let allClubs = [];
+        let currentFilter = 'all';
+        let deleteTarget = null;
+
+        function showMessage(text, type = 'success') {
+            const cls = type === 'error' ? 'alert-danger' : 'alert-success';
+            const icon = type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle';
+            document.getElementById('messageBox').innerHTML = `
+                <div class="alert ${cls} d-flex align-items-center">
+                    <i class="fas ${icon} me-2"></i> ${text}
+                </div>`;
+            setTimeout(() => document.getElementById('messageBox').innerHTML = '', 5000);
+        }
+
+        function getUserType() {
+            return localStorage.getItem('user_type') || sessionStorage.getItem('user_type');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+        }
+
+        // Auto-generate slug from name
+        document.getElementById('clubName').addEventListener('input', function() {
+            const slug = this.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            document.getElementById('clubSlug').value = slug;
+        });
+
+        async function loadClubs() {
+            const response = await API.request('/platform/clubs?active_only=false&limit=100');
+            if (!response || !response.ok) {
+                showMessage('Failed to load clubs.', 'error');
+                return;
+            }
+            allClubs = response.data.clubs || [];
+            updateStats();
+            renderClubs();
+        }
+
+        function updateStats() {
+            const active = allClubs.filter(c => c.is_active).length;
+            const inactive = allClubs.filter(c => !c.is_active).length;
+            document.getElementById('totalClubs').textContent = allClubs.length;
+            document.getElementById('activeClubs').textContent = active;
+            document.getElementById('inactiveClubs').textContent = inactive;
+        }
+
+        function renderClubs() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            let filtered = allClubs.filter(c => {
+                const matchesSearch = !search || 
+                    c.name.toLowerCase().includes(search) || 
+                    c.slug.toLowerCase().includes(search) || 
+                    (c.contact_email || '').toLowerCase().includes(search);
+                const matchesFilter = currentFilter === 'all' || 
+                    (currentFilter === 'active' && c.is_active) || 
+                    (currentFilter === 'inactive' && !c.is_active);
+                return matchesSearch && matchesFilter;
+            });
+
+            const container = document.getElementById('clubsList');
+            if (!filtered.length) {
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-building"></i>No clubs found</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(c => `
+                <div class="club-card">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <span class="club-name">${escapeHtml(c.name)}</span>
+                                <span class="badge-status ${c.is_active ? 'badge-active' : 'badge-inactive'}">
+                                    ${c.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                            </div>
+                            <div class="club-slug mb-1">/${c.slug}</div>
+                            <div class="club-email mb-2">
+                                <i class="fas fa-envelope fa-xs me-1"></i>${escapeHtml(c.contact_email || 'No email')}
+                            </div>
+                            <div>
+                                <span class="club-stat"><i class="fas fa-calendar"></i> Created ${new Date(c.created_at).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 align-items-start">
+                            <a href="/platform/ui/admins?club=${c.id}" class="action-btn">
+                                <i class="fas fa-users me-1"></i>Admins
+                            </a>
+                            ${c.is_active 
+                                ? `<button class="action-btn" onclick="deactivateClub('${c.id}')">
+                                    <i class="fas fa-ban me-1"></i>Deactivate
+                                  </button>`
+                                : `<button class="action-btn btn-reactivate" onclick="reactivateClub('${c.id}')">
+                                    <i class="fas fa-check me-1"></i>Reactivate
+                                  </button>`
+                            }
+                            <button class="action-btn btn-delete" onclick="openDeleteModal('${c.id}', '${escapeHtml(c.name).replace(/'/g, "\\'")}')">
+                                <i class="fas fa-trash me-1"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Filter tabs
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.dataset.filter;
+                renderClubs();
+            });
+        });
+
+        // Search
+        document.getElementById('searchInput').addEventListener('input', renderClubs);
+
+        // Create club
+        document.getElementById('createClubBtn').addEventListener('click', async () => {
+            const name = document.getElementById('clubName').value.trim();
+            const slug = document.getElementById('clubSlug').value.trim();
+            const email = document.getElementById('clubEmail').value.trim();
+            const errorDiv = document.getElementById('createError');
+
+            if (!name || !slug || !email) {
+                errorDiv.textContent = 'Please fill all fields.';
+                errorDiv.classList.remove('d-none');
+                return;
+            }
+
+            const response = await API.request('/platform/clubs', {
+                method: 'POST',
+                body: JSON.stringify({ name, slug, contact_email: email })
+            });
+
+            if (!response || !response.ok) {
+                errorDiv.textContent = response?.data?.detail || 'Failed to create club.';
+                errorDiv.classList.remove('d-none');
+                return;
+            }
+
+            bootstrap.Modal.getInstance(document.getElementById('createClubModal')).hide();
+            document.getElementById('clubName').value = '';
+            document.getElementById('clubSlug').value = '';
+            document.getElementById('clubEmail').value = '';
+            errorDiv.classList.add('d-none');
+            showMessage('Club created successfully!');
+            loadClubs();
+        });
+
+        // Deactivate
+        async function deactivateClub(clubId) {
+            if (!confirm('Are you sure you want to deactivate this club?')) return;
+            const response = await API.request(`/platform/clubs/${clubId}`, { method: 'DELETE' });
+            if (!response || !response.ok) {
+                showMessage(response?.data?.detail || 'Failed to deactivate.', 'error');
+                return;
+            }
+            showMessage('Club deactivated.');
+            loadClubs();
+        }
+
+        // Reactivate
+        async function reactivateClub(clubId) {
+            const response = await API.request(`/platform/clubs/${clubId}/reactivate`, { method: 'PUT' });
+            if (!response || !response.ok) {
+                showMessage(response?.data?.detail || 'Failed to reactivate.', 'error');
+                return;
+            }
+            showMessage('Club reactivated!');
+            loadClubs();
+        }
+
+        // Delete permanently
+        function openDeleteModal(clubId, clubName) {
+            deleteTarget = { id: clubId, name: clubName };
+            document.getElementById('deleteClubName').textContent = clubName;
+            document.getElementById('deleteConfirmInput').value = '';
+            document.getElementById('confirmDeleteBtn').disabled = true;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        }
+
+        document.getElementById('deleteConfirmInput').addEventListener('input', function() {
+            document.getElementById('confirmDeleteBtn').disabled = 
+                this.value.trim() !== deleteTarget?.name;
+        });
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+            if (!deleteTarget) return;
+            const btn = document.getElementById('confirmDeleteBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+
+            const response = await API.request(`/platform/clubs/${deleteTarget.id}/permanent`, { method: 'DELETE' });
+            bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+
+            if (!response || !response.ok) {
+                showMessage(response?.data?.detail || 'Failed to delete club.', 'error');
+                btn.innerHTML = '<i class="fas fa-trash"></i> Delete Permanently';
+                btn.disabled = false;
+                return;
+            }
+            showMessage('Club permanently deleted.');
+            btn.innerHTML = '<i class="fas fa-trash"></i> Delete Permanently';
+            loadClubs();
+        });
+
+        // Init
+        if (getUserType() !== 'platform_admin') {
+            showMessage('Access denied. Platform admin login required.', 'error');
+        } else {
+            loadClubs();
+        }
+    </script>
+</body>
+</html>

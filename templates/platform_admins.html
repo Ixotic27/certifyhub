@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Club Admins - CertifyHub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(120% 120% at 50% 10%, #1f2347 0%, #12142b 45%, #0b0d1f 100%);
+            min-height: 100vh; color: #e6e9ff; display: flex; flex-direction: column;
+        }
+        nav {
+            background: rgba(9,10,26,0.7); padding: 1rem 2.5rem;
+            display: flex; justify-content: space-between; align-items: center;
+            backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .logo { color: #cfd5ff; text-decoration: none; font-weight: 700; font-size: 1.1rem; }
+        .back-btn {
+            background: rgba(255,255,255,0.08); color: #cfd5ff; padding: 0.55rem 1.25rem;
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+            text-decoration: none; font-weight: 700; transition: all 0.2s;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+        .main-content { flex: 1; padding: 2rem 2.5rem; }
+        .panel {
+            background: rgba(16,18,40,0.7); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px; padding: 2rem; box-shadow: 0 20px 55px rgba(0,0,0,0.4);
+            backdrop-filter: blur(16px); margin-bottom: 1.5rem;
+        }
+        .page-title { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.25rem; }
+        .page-subtitle { color: #b8c0ff; font-size: 0.95rem; }
+        .form-control, .form-select {
+            background: #0f1226 !important; border: 1px solid rgba(255,255,255,0.15);
+            color: #e6e9ff !important; border-radius: 10px;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #6d6bff; box-shadow: 0 0 0 3px rgba(109,107,255,0.15);
+        }
+        .form-control::placeholder { color: #6c7293; }
+        .form-label { color: #b8c0ff; font-weight: 600; font-size: 0.9rem; }
+        .btn-create {
+            background: linear-gradient(135deg, #5f4bff 0%, #7a5cff 100%);
+            border: none; font-weight: 700; color: #fff; border-radius: 10px; padding: 0.6rem 1.5rem;
+        }
+        .btn-create:hover { box-shadow: 0 8px 25px rgba(95,75,255,0.4); transform: translateY(-1px); color: #fff; }
+
+        /* Club selector */
+        .club-selector {
+            display: flex; gap: 1rem; align-items: end; flex-wrap: wrap;
+        }
+        .club-search-wrap { position: relative; flex: 1; min-width: 250px; }
+        .club-search-wrap i.search-icon { position: absolute; left: 12px; top: 38px; color: #6c7293; }
+        .club-search-wrap input { padding-left: 2.2rem; }
+        .club-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
+            background: #1a1d3a; border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px; max-height: 240px; overflow-y: auto;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.5); display: none;
+        }
+        .club-dropdown.show { display: block; }
+        .club-option {
+            padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);
+            transition: background 0.15s;
+        }
+        .club-option:hover { background: rgba(109,107,255,0.15); }
+        .club-option:last-child { border-bottom: none; }
+        .club-option .co-name { font-weight: 700; font-size: 0.95rem; }
+        .club-option .co-slug { font-size: 0.8rem; color: #8b93c7; font-family: monospace; }
+
+        /* Selected club banner */
+        .selected-club-banner {
+            background: rgba(109,107,255,0.1); border: 1px solid rgba(109,107,255,0.25);
+            border-radius: 12px; padding: 1rem 1.25rem; display: flex;
+            align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+        }
+        .scb-info { display: flex; align-items: center; gap: 0.75rem; }
+        .scb-icon {
+            width: 42px; height: 42px; border-radius: 10px;
+            background: rgba(109,107,255,0.2); display: flex; align-items: center;
+            justify-content: center; font-size: 1.2rem; color: #a99cff;
+        }
+        .scb-name { font-weight: 700; font-size: 1.05rem; }
+        .scb-slug { font-size: 0.82rem; color: #8b93c7; font-family: monospace; }
+
+        /* Admin cards */
+        .admin-card {
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px; padding: 1.2rem; transition: all 0.2s;
+        }
+        .admin-card:hover { border-color: rgba(109,107,255,0.25); background: rgba(255,255,255,0.06); }
+        .admin-avatar {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: linear-gradient(135deg, #5f4bff, #7a5cff);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 1.1rem; color: #fff; flex-shrink: 0;
+        }
+        .admin-name { font-weight: 700; font-size: 1rem; color: #e6e9ff; }
+        .admin-email { font-size: 0.88rem; color: #b8c0ff; }
+        .admin-meta { font-size: 0.8rem; color: #6c7293; }
+        .badge-active { background: rgba(25,135,84,0.2); color: #75d6a0; border: 1px solid rgba(25,135,84,0.3); }
+        .badge-inactive { background: rgba(220,53,69,0.15); color: #ff8a97; border: 1px solid rgba(220,53,69,0.25); }
+        .badge-status { padding: 0.25rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
+        .badge-pending { background: rgba(255,193,7,0.15); color: #ffd352; border: 1px solid rgba(255,193,7,0.25); }
+
+        .action-btn {
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+            color: #cfd5ff; border-radius: 8px; padding: 0.3rem 0.65rem; font-size: 0.78rem;
+            cursor: pointer; transition: all 0.2s; font-weight: 600;
+        }
+        .action-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        .action-btn.btn-reset { color: #ffd352; border-color: rgba(255,193,7,0.3); }
+        .action-btn.btn-reset:hover { background: rgba(255,193,7,0.12); }
+        .action-btn.btn-deactivate { color: #ff8a97; border-color: rgba(220,53,69,0.3); }
+        .action-btn.btn-deactivate:hover { background: rgba(220,53,69,0.12); }
+        .action-btn.btn-activate { color: #75d6a0; border-color: rgba(25,135,84,0.3); }
+        .action-btn.btn-activate:hover { background: rgba(25,135,84,0.12); }
+
+        .empty-state { text-align: center; padding: 2.5rem; color: #6c7293; }
+        .empty-state i { font-size: 2.5rem; margin-bottom: 0.75rem; display: block; }
+        .alert { border-radius: 10px; border: none; }
+        .alert-danger { background: rgba(248,215,218,0.12); color: #ffb3ba; }
+        .alert-success { background: rgba(212,237,218,0.12); color: #a3d9b1; }
+        .alert-warning { background: rgba(255,243,205,0.12); color: #ffd352; }
+        .modal-content {
+            background: #1a1d3a; border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px; color: #e6e9ff;
+        }
+        .modal-header { border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .modal-footer { border-top: 1px solid rgba(255,255,255,0.08); }
+        .btn-close { filter: invert(1); }
+        .password-display {
+            background: #0f1226; border: 1px solid rgba(109,107,255,0.3);
+            border-radius: 10px; padding: 1rem; text-align: center; font-family: monospace;
+            font-size: 1.3rem; font-weight: 700; letter-spacing: 1px; color: #a99cff;
+            user-select: all; cursor: pointer; position: relative;
+        }
+        .password-display:hover::after {
+            content: 'Click to copy'; position: absolute; top: -1.5rem; left: 50%;
+            transform: translateX(-50%); font-size: 0.7rem; color: #8b93c7;
+            background: #1a1d3a; padding: 0.2rem 0.5rem; border-radius: 4px;
+        }
+        .section-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/platform/dashboard" class="logo"><i class="fas fa-certificate me-2"></i>CertifyHub</a>
+        <div>
+            <a href="/platform/ui/clubs" class="back-btn me-2"><i class="fas fa-building me-1"></i> Clubs</a>
+            <a href="/platform/dashboard" class="back-btn"><i class="fas fa-arrow-left me-1"></i> Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <!-- Club Search Section -->
+        <div class="panel">
+            <h1 class="page-title"><i class="fas fa-users-cog me-2"></i>Manage Club Admins</h1>
+            <p class="page-subtitle mb-3">Search for a club, then manage its administrators.</p>
+
+            <div id="messageBox" class="mb-3"></div>
+
+            <!-- Club search -->
+            <div class="club-search-wrap mb-3" id="clubSearchWrap">
+                <label class="form-label">Search & Select Club</label>
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="form-control" id="clubSearchInput" 
+                       placeholder="Type to search clubs by name or slug..." autocomplete="off">
+                <div class="club-dropdown" id="clubDropdown"></div>
+            </div>
+
+            <!-- Selected club banner -->
+            <div id="selectedClubBanner" style="display: none;">
+                <div class="selected-club-banner">
+                    <div class="scb-info">
+                        <div class="scb-icon"><i class="fas fa-building"></i></div>
+                        <div>
+                            <div class="scb-name" id="selectedClubName">-</div>
+                            <div class="scb-slug" id="selectedClubSlug">-</div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-create btn-sm" onclick="openAddAdminModal()">
+                            <i class="fas fa-user-plus me-1"></i> Add Admin
+                        </button>
+                        <button class="action-btn" onclick="clearSelection()">
+                            <i class="fas fa-times me-1"></i>Change Club
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admins Section -->
+        <div class="panel" id="adminsPanel" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="section-title"><i class="fas fa-user-shield me-2"></i>Club Administrators <span class="badge-status badge-active" id="adminCount">0</span></div>
+            </div>
+            <div id="adminsList" class="d-flex flex-column gap-3">
+                <div class="empty-state"><i class="fas fa-spinner fa-spin"></i>Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Admin Modal -->
+    <div class="modal fade" id="addAdminModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Add Club Admin</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3" style="color: #8b93c7; font-size: 0.9rem;">
+                        Adding admin to: <strong id="addAdminClubName" style="color: #e6e9ff;"></strong>
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="newAdminName" placeholder="John Doe">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="newAdminEmail" placeholder="admin@email.com">
+                    </div>
+                    <div id="addAdminError" class="alert alert-danger d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-create" id="addAdminBtn">
+                        <i class="fas fa-user-plus"></i> Create Admin
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Password Display Modal -->
+    <div class="modal fade" id="passwordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-key me-2"></i>Temporary Password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning d-flex align-items-center mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <small>This password is shown <strong>only once</strong>. Copy it now and share it securely with the admin.</small>
+                    </div>
+                    <p style="color: #8b93c7; font-size: 0.9rem;">
+                        Admin: <strong id="pwAdminName" style="color: #e6e9ff;"></strong>
+                        (<span id="pwAdminEmail" style="color: #b8c0ff;"></span>)
+                    </p>
+                    <div class="password-display" id="tempPasswordDisplay" onclick="copyPassword()">-</div>
+                    <div class="text-center mt-2">
+                        <small style="color: #6c7293;">Click the password to copy it</small>
+                    </div>
+                    <div class="mt-3 p-2 rounded" style="background: rgba(109,107,255,0.08); font-size: 0.85rem; color: #b8c0ff;">
+                        <i class="fas fa-info-circle me-1"></i> The admin will be required to change this password on first login.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-create" data-bs-dismiss="modal">
+                        <i class="fas fa-check"></i> Done
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script>
+        let allClubs = [];
+        let selectedClub = null;
+        let currentAdmins = [];
+
+        function showMessage(text, type = 'success') {
+            const cls = type === 'error' ? 'alert-danger' : 'alert-success';
+            const icon = type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle';
+            document.getElementById('messageBox').innerHTML = `
+                <div class="alert ${cls} d-flex align-items-center">
+                    <i class="fas ${icon} me-2"></i> ${text}
+                </div>`;
+            setTimeout(() => document.getElementById('messageBox').innerHTML = '', 5000);
+        }
+
+        function getUserType() {
+            return localStorage.getItem('user_type') || sessionStorage.getItem('user_type');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+        }
+
+        function getInitials(name) {
+            if (!name) return '?';
+            return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+        }
+
+        function timeAgo(dateStr) {
+            if (!dateStr) return 'Never';
+            const d = new Date(dateStr);
+            const now = new Date();
+            const diff = Math.floor((now - d) / 1000);
+            if (diff < 60) return 'Just now';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+            return d.toLocaleDateString();
+        }
+
+        // Load clubs
+        async function loadClubs() {
+            const response = await API.request('/platform/clubs?active_only=false&limit=100');
+            if (!response || !response.ok) return;
+            allClubs = response.data.clubs || [];
+        }
+
+        // Club search
+        const searchInput = document.getElementById('clubSearchInput');
+        const dropdown = document.getElementById('clubDropdown');
+
+        searchInput.addEventListener('focus', () => showDropdown());
+        searchInput.addEventListener('input', () => showDropdown());
+
+        document.addEventListener('click', (e) => {
+            if (!document.getElementById('clubSearchWrap').contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        function showDropdown() {
+            const q = searchInput.value.toLowerCase();
+            const filtered = allClubs.filter(c => 
+                c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q)
+            ).slice(0, 10);
+
+            if (!filtered.length) {
+                dropdown.innerHTML = '<div class="club-option" style="color: #6c7293;">No clubs found</div>';
+            } else {
+                dropdown.innerHTML = filtered.map(c => `
+                    <div class="club-option" onclick="selectClub('${c.id}')">
+                        <div class="co-name">${escapeHtml(c.name)}
+                            ${!c.is_active ? '<span class="badge-status badge-inactive ms-1">Inactive</span>' : ''}
+                        </div>
+                        <div class="co-slug">/${c.slug} &middot; ${escapeHtml(c.contact_email || '')}</div>
+                    </div>
+                `).join('');
+            }
+            dropdown.classList.add('show');
+        }
+
+        function selectClub(clubId) {
+            selectedClub = allClubs.find(c => c.id === clubId);
+            if (!selectedClub) return;
+
+            dropdown.classList.remove('show');
+            searchInput.value = '';
+            document.getElementById('clubSearchWrap').style.display = 'none';
+
+            document.getElementById('selectedClubBanner').style.display = 'block';
+            document.getElementById('selectedClubName').textContent = selectedClub.name;
+            document.getElementById('selectedClubSlug').textContent = '/' + selectedClub.slug;
+
+            document.getElementById('adminsPanel').style.display = 'block';
+            loadAdmins(selectedClub.id);
+        }
+
+        function clearSelection() {
+            selectedClub = null;
+            document.getElementById('clubSearchWrap').style.display = 'block';
+            document.getElementById('selectedClubBanner').style.display = 'none';
+            document.getElementById('adminsPanel').style.display = 'none';
+            searchInput.value = '';
+        }
+
+        // Load admins
+        async function loadAdmins(clubId) {
+            const container = document.getElementById('adminsList');
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i>Loading admins...</div>';
+
+            const response = await API.request(`/platform/clubs/${clubId}/administrators`);
+            if (!response || !response.ok) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i>Failed to load admins</div>';
+                return;
+            }
+
+            currentAdmins = response.data.admins || [];
+            document.getElementById('adminCount').textContent = currentAdmins.length;
+
+            if (!currentAdmins.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-user-slash"></i>
+                        No administrators found for this club.
+                        <div class="mt-2">
+                            <button class="btn btn-create btn-sm" onclick="openAddAdminModal()">
+                                <i class="fas fa-user-plus me-1"></i> Add First Admin
+                            </button>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = currentAdmins.map(a => `
+                <div class="admin-card">
+                    <div class="d-flex gap-3 align-items-start">
+                        <div class="admin-avatar">${getInitials(a.full_name)}</div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                <span class="admin-name">${escapeHtml(a.full_name || 'Unnamed')}</span>
+                                <span class="badge-status ${a.is_active ? 'badge-active' : 'badge-inactive'}">
+                                    ${a.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                                ${a.must_change_password ? '<span class="badge-status badge-pending">Password Reset Pending</span>' : ''}
+                            </div>
+                            <div class="admin-email mb-1"><i class="fas fa-envelope fa-xs me-1"></i>${escapeHtml(a.email)}</div>
+                            <div class="admin-meta">
+                                <i class="fas fa-calendar fa-xs me-1"></i>Joined ${new Date(a.created_at).toLocaleDateString()}
+                                &nbsp;&middot;&nbsp;
+                                <i class="fas fa-clock fa-xs me-1"></i>Last login: ${timeAgo(a.last_login)}
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column gap-2" style="min-width: fit-content;">
+                            <button class="action-btn btn-reset" onclick="resetPassword('${a.id}', '${escapeHtml(a.full_name).replace(/'/g, "\\'")}', '${escapeHtml(a.email).replace(/'/g, "\\'")}')">
+                                <i class="fas fa-key me-1"></i>Reset Password
+                            </button>
+                            ${a.is_active 
+                                ? `<button class="action-btn btn-deactivate" onclick="toggleAdmin('${a.id}', false)">
+                                    <i class="fas fa-ban me-1"></i>Deactivate
+                                  </button>`
+                                : `<button class="action-btn btn-activate" onclick="toggleAdmin('${a.id}', true)">
+                                    <i class="fas fa-check me-1"></i>Activate
+                                  </button>`
+                            }
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Add admin
+        function openAddAdminModal() {
+            if (!selectedClub) return;
+            document.getElementById('addAdminClubName').textContent = selectedClub.name;
+            document.getElementById('newAdminName').value = '';
+            document.getElementById('newAdminEmail').value = '';
+            document.getElementById('addAdminError').classList.add('d-none');
+            new bootstrap.Modal(document.getElementById('addAdminModal')).show();
+        }
+
+        document.getElementById('addAdminBtn').addEventListener('click', async () => {
+            const name = document.getElementById('newAdminName').value.trim();
+            const email = document.getElementById('newAdminEmail').value.trim();
+            const errorDiv = document.getElementById('addAdminError');
+
+            if (!name || !email) {
+                errorDiv.textContent = 'Please fill all fields.';
+                errorDiv.classList.remove('d-none');
+                return;
+            }
+
+            const btn = document.getElementById('addAdminBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+
+            const response = await API.request(`/platform/clubs/${selectedClub.id}/administrators`, {
+                method: 'POST',
+                body: JSON.stringify({ full_name: name, email: email })
+            });
+
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-user-plus"></i> Create Admin';
+
+            if (!response || !response.ok) {
+                errorDiv.textContent = response?.data?.detail || 'Failed to create admin.';
+                errorDiv.classList.remove('d-none');
+                return;
+            }
+
+            // Close add modal, show password modal
+            bootstrap.Modal.getInstance(document.getElementById('addAdminModal')).hide();
+            
+            const tempPassword = response.data.temp_password || 'N/A';
+            showPasswordModal(name, email, tempPassword);
+            loadAdmins(selectedClub.id);
+        });
+
+        // Show password modal
+        function showPasswordModal(name, email, password) {
+            document.getElementById('pwAdminName').textContent = name;
+            document.getElementById('pwAdminEmail').textContent = email;
+            document.getElementById('tempPasswordDisplay').textContent = password;
+            new bootstrap.Modal(document.getElementById('passwordModal')).show();
+        }
+
+        function copyPassword() {
+            const pw = document.getElementById('tempPasswordDisplay').textContent;
+            navigator.clipboard.writeText(pw).then(() => {
+                showMessage('Password copied to clipboard!');
+            });
+        }
+
+        // Reset password
+        async function resetPassword(adminId, adminName, adminEmail) {
+            if (!confirm(`Reset password for ${adminName} (${adminEmail})?\n\nA new temporary password will be generated.`)) return;
+
+            const response = await API.request(`/platform/administrators/${adminId}/reset-password`, { method: 'PUT' });
+            if (!response || !response.ok) {
+                showMessage(response?.data?.detail || 'Failed to reset password.', 'error');
+                return;
+            }
+
+            showPasswordModal(
+                response.data.admin_name || adminName,
+                response.data.admin_email || adminEmail,
+                response.data.temp_password
+            );
+            loadAdmins(selectedClub.id);
+        }
+
+        // Toggle admin active/inactive
+        async function toggleAdmin(adminId, activate) {
+            const action = activate ? 'activate' : 'deactivate';
+            if (!confirm(`Are you sure you want to ${action} this admin?`)) return;
+
+            const endpoint = activate 
+                ? `/platform/administrators/${adminId}/activate`
+                : `/platform/administrators/${adminId}/deactivate`;
+
+            const response = await API.request(endpoint, { method: 'PUT' });
+            if (!response || !response.ok) {
+                showMessage(response?.data?.detail || `Failed to ${action} admin.`, 'error');
+                return;
+            }
+            showMessage(`Admin ${activate ? 'activated' : 'deactivated'} successfully.`);
+            loadAdmins(selectedClub.id);
+        }
+
+        // Check URL params for pre-selected club
+        function checkUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const clubId = params.get('club');
+            if (clubId) {
+                // Wait for clubs to load, then select
+                const interval = setInterval(() => {
+                    if (allClubs.length > 0) {
+                        clearInterval(interval);
+                        selectClub(clubId);
+                    }
+                }, 100);
+                setTimeout(() => clearInterval(interval), 5000);
+            }
+        }
+
+        // Init
+        if (getUserType() !== 'platform_admin') {
+            showMessage('Access denied. Platform admin login required.', 'error');
+        } else {
+            loadClubs().then(checkUrlParams);
+        }
+    </script>
+</body>
+</html>
