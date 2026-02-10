@@ -438,6 +438,9 @@
                                     <i class="fas fa-check me-1"></i>Activate
                                   </button>`
                             }
+                            <button class="action-btn btn-deactivate" onclick="deleteAdmin('${a.id}', '${escapeHtml(a.full_name).replace(/'/g, "\\'")}')">
+                                <i class="fas fa-trash me-1"></i>Delete
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -539,6 +542,18 @@
                 return;
             }
             showMessage(`Admin ${activate ? 'activated' : 'deactivated'} successfully.`);
+            loadAdmins(selectedClub.id);
+        }
+
+        // Delete admin permanently
+        async function deleteAdmin(adminId, adminName) {
+            if (!confirm(`Permanently delete admin "${adminName}"?\n\nThis cannot be undone.`)) return;
+            const response = await API.request(`/platform/administrators/${adminId}/permanent`, { method: 'DELETE' });
+            if (!response || !response.ok) {
+                showMessage(response?.data?.detail || 'Failed to delete admin.', 'error');
+                return;
+            }
+            showMessage('Admin permanently deleted.');
             loadAdmins(selectedClub.id);
         }
 

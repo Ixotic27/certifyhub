@@ -423,29 +423,26 @@
             });
 
             previewBtn.addEventListener('click', async () => {
-                const name = document.getElementById('name').value.trim();
-                const studentId = document.getElementById('studentId').value.trim();
-                const role = document.getElementById('role').value;
                 const eventId = eventSelect.value;
-                const clubSlug = clubSelect.value || null;
 
-                if (!name || !studentId || !clubSlug || !eventId) {
-                    showMessage('Please select a club, event date, and fill in name + student ID.', 'danger');
+                if (!eventId) {
+                    showMessage('Please select a club and event first.', 'danger');
+                    return;
+                }
+
+                const selectedOption = eventSelect.options[eventSelect.selectedIndex];
+                const templateImageUrl = selectedOption.dataset.templateImage;
+
+                if (!templateImageUrl) {
+                    showMessage('Template image not available for this event.', 'danger');
                     return;
                 }
 
                 try {
-                    const verifyResponse = await fetch('/verify', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ club_slug: clubSlug, role, name, student_id: studentId, event_id: eventId })
-                    });
-                    if (!verifyResponse.ok) throw new Error('Certificate not found');
-                    lastVerifyData = await verifyResponse.json();
-                    await renderPreview(lastVerifyData, name, studentId);
+                    await renderPreview(templateImageUrl);
                     previewModal.style.display = 'flex';
                 } catch (error) {
-                    showMessage('Certificate not found. Please check your details.', 'danger');
+                    showMessage('Failed to load template preview.', 'danger');
                 }
             });
 
@@ -544,6 +541,7 @@
                         const opt = document.createElement('option');
                         opt.value = e.id;
                         opt.dataset.desc = e.description || '';
+                        opt.dataset.templateImage = e.template_image_url || '';
                         opt.textContent = `${new Date(e.event_date).toLocaleDateString()} - ${e.name}`;
                         eventSelect.appendChild(opt);
                     });
@@ -552,42 +550,19 @@
                 }
             }
 
-            async function renderPreview(data, name, studentId) {
-                const imgUrl = data.template_image_url;
-                const fields = Array.isArray(data.text_fields) ? data.text_fields : [];
-
+            async function renderPreview(templateImageUrl) {
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
                 await new Promise((resolve, reject) => {
                     img.onload = resolve;
                     img.onerror = reject;
-                    img.src = imgUrl;
+                    img.src = templateImageUrl;
                 });
 
                 previewCanvas.width = img.width;
                 previewCanvas.height = img.height;
                 const ctx = previewCanvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
-
-                fields.forEach(field => {
-                    const type = (field.field_type || field.field || '').toLowerCase();
-                    let text = '';
-                    if (type === 'name') text = name;
-                    else if (type === 'student_id') text = studentId;
-                    else if (type === 'custom') text = field.field_name || '';
-                    else return;
-
-                    const fontSize = field.font_size || 32;
-                    const fontFamily = field.font_family || 'Arial';
-                    const color = field.font_color || '#000000';
-                    const align = (field.align || 'center').toLowerCase();
-
-                    ctx.fillStyle = color;
-                    ctx.font = `${fontSize}px ${fontFamily}`;
-                    ctx.textAlign = align;
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(text, field.x || 0, field.y || 0);
-                });
             }
     </script>
 </body>

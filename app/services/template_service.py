@@ -10,6 +10,7 @@ from io import BytesIO
 from PIL import Image
 from app.database import database
 from app.schemas.template import CreateTemplateRequest, UpdateTemplateCoordinatesRequest, TextFieldCoordinate
+from app.services.storage_service import StorageService
 from app.services.activity_log_service import ActivityLogService
 from fastapi import HTTPException, status
 
@@ -50,11 +51,11 @@ class TemplateService:
         # Validate template image URL
         await TemplateService.validate_template_image(str(data.template_image_url))
         
-        # Check if template with same name already exists for this club
+        # Check if template with same name already exists for this club (active only)
         existing = await database.fetch_one(
             """
             SELECT id FROM certificate_templates
-            WHERE club_id = :club_id AND name = :name AND audience = :audience
+            WHERE club_id = :club_id AND name = :name AND audience = :audience AND is_active = TRUE
             """,
             {"club_id": club_id, "name": data.template_name, "audience": data.audience}
         )
@@ -237,8 +238,8 @@ class TemplateService:
         return dict(updated) if updated else None
     
     @staticmethod
-    async def deactivate_template(template_id: str) -> dict:
-        """Deactivate a template"""
+    async def delete_template(template_id: str) -> None:
+        """Permanently delete a template and its image from storage"""
         
         # Check if template exists
         template = await database.fetch_one(
@@ -252,15 +253,17 @@ class TemplateService:
                 detail="Template not found"
             )
         
-        # Deactivate template
-        await database.execute(
-            "UPDATE certificate_templates SET is_active = FALSE, updated_at = NOW() WHERE id = :template_id",
-            {"template_id": template_id}
-        )
+        # Delete image from Supabase Storage
+        try:
+            image_url = template["template_image_url"]
+            if image_url:
+                await StorageService.delete_by_url(image_url)
+        except Exception:
+            pass  # Don't fail if storage cleanup fails
         
-        # Fetch updated template
-        updated = await database.fetch_one(
-            "SELECT * FROM certificate_templates WHERE id = :template_id",
+        # Delete template from database
+        await database.execute(
+            "DELETE FROM certificate_templates WHERE id = :template_id",
             {"template_id": template_id}
         )
         
@@ -269,15 +272,13 @@ class TemplateService:
             await ActivityLogService.log_activity(
                 club_id=uuid.UUID(str(template["club_id"])),
                 admin_id=None,
-                action="deactivate_template",
+                action="delete_template",
                 resource_type="template",
                 resource_id=uuid.UUID(template_id),
                 details={"template_name": template["name"]}
             )
         except Exception:
             pass  # Don't fail if logging fails
-        
-        return dict(updated) if updated else None
     
     @staticmethod
     async def get_template_stats(template_id: str) -> dict:

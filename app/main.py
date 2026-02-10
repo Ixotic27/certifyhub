@@ -158,6 +158,12 @@ async def platform_analytics_page(request: Request):
     return templates.TemplateResponse("platform_analytics.html", {"request": request})
 
 
+@app.get("/platform/ui/resources", response_class=HTMLResponse)
+async def platform_resources_page(request: Request):
+    """Platform resources management page"""
+    return templates.TemplateResponse("platform_resources.html", {"request": request})
+
+
 @app.get("/admin/ui/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
     """Dashboard page"""

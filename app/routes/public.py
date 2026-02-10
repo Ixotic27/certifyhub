@@ -85,11 +85,13 @@ async def list_public_events(
 
     rows = await database.fetch_all(
         f"""
-        SELECT id, name, description, event_date, template_id, role
-        FROM certificate_events
-        WHERE club_id = :club_id AND is_active = TRUE
+        SELECT e.id, e.name, e.description, e.event_date, e.template_id, e.role,
+               t.template_image_url
+        FROM certificate_events e
+        LEFT JOIN certificate_templates t ON t.id = e.template_id
+        WHERE e.club_id = :club_id AND e.is_active = TRUE
         {role_filter}
-        ORDER BY event_date DESC, created_at DESC
+        ORDER BY e.event_date DESC, e.created_at DESC
         """,
         params
     )
@@ -278,11 +280,11 @@ async def download_certificate(
         event_id=event_id
     )
 
-    filename = f"certificate_{student_id}_{certificate_id}.pdf"
+    filename = f"{name.replace(' ', '_')}_certificate.pdf"
     return StreamingResponse(
         BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
 
 

@@ -3,26 +3,36 @@ Activity Log Schemas
 Request and response models for activity logging
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from uuid import UUID
 from datetime import datetime
 from typing import Optional, Any, List
+import json
 
 
 class ActivityLogEntry(BaseModel):
     """Single activity log entry"""
+    model_config = {"from_attributes": True}
+
     id: UUID
-    club_id: Optional[UUID]
-    admin_id: Optional[UUID]
+    club_id: Optional[UUID] = None
+    admin_id: Optional[UUID] = None
     action: str
-    resource_type: Optional[str]
-    resource_id: Optional[UUID]
+    resource_type: Optional[str] = None
+    resource_id: Optional[UUID] = None
     details: Optional[dict] = None
-    ip_address: Optional[str]
+    ip_address: Optional[str] = None
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
+
+    @field_validator("details", mode="before")
+    @classmethod
+    def parse_details(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return {"raw": v}
+        return v
 
 
 class ActivityLogResponse(BaseModel):

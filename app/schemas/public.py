@@ -66,6 +66,7 @@ class PublicEventResponse(BaseModel):
     event_date: date
     template_id: UUID
     role: str
+    template_image_url: Optional[str] = None
 
 
 class PublicEventListResponse(BaseModel):

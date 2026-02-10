@@ -22,8 +22,23 @@ from app.schemas.template import CreateTemplateRequest, UpdateTemplateCoordinate
 from app.schemas.attendee import CSVUploadRequest, CSVUploadResponse, AttendeeResponse, AttendeeListResponse
 from app.schemas.admin import AdminDashboardResponse, CreateCertificateEventRequest, CertificateEventResponse
 from app.schemas.activity_log import ActivityLogResponse, ActivityStatsResponse
+import re
 
 router = APIRouter()
+
+
+def _slugify(text: str) -> str:
+    """Convert text to a safe filesystem slug."""
+    s = text.strip().lower()
+    s = re.sub(r'[^\w\s\-.]', '', s)
+    s = re.sub(r'[\s]+', '_', s)
+    return s or 'file'
+
+
+async def _get_club_slug(club_id: str) -> str:
+    """Fetch club slug from club_id."""
+    row = await database.fetch_one("SELECT slug FROM clubs WHERE id = :id", {"id": club_id})
+    return row["slug"] if row else "unknown"
 
 
 @router.get("/dashboard", response_model=AdminDashboardResponse)
@@ -207,8 +222,10 @@ async def upload_certificate_template_file(
         )
 
     # Upload optimized image to Supabase Storage
-    file_name = f"template_{uuid.uuid4().hex}.png"
-    storage_path = f"clubs/{club_id}/templates/{file_name}"
+    club_slug = await _get_club_slug(str(club_id))
+    safe_name = _slugify(template_name)
+    file_name = f"{club_slug}_{safe_name}_{uuid.uuid4().hex[:8]}.png"
+    storage_path = f"clubs/{club_slug}/templates/{file_name}"
     image_url = await StorageService.upload_bytes(storage_path, optimized_content, optimized_type)
 
     try:
@@ -322,15 +339,14 @@ async def update_template_coordinates(
 
 
 @router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def deactivate_template(
+async def delete_template(
     template_id: UUID,
     current_admin: dict = Depends(get_club_admin)
 ):
     """
-    Deactivate a template (Club Admin only)
+    Permanently delete a template (Club Admin only)
     
-    Deactivating prevents it from being used for new certificates.
-    Existing certificates remain valid.
+    Deletes the template and its image from storage.
     """
     
     template = await template_service.get_template(str(template_id))
@@ -342,7 +358,7 @@ async def deactivate_template(
             detail="You do not have access to this template"
         )
     
-    await template_service.deactivate_template(str(template_id))
+    await template_service.delete_template(str(template_id))
     return None
 
 
@@ -457,9 +473,11 @@ async def upload_attendees_csv_file(
         )
 
     # Upload CSV to Supabase Storage
+    club_slug = await _get_club_slug(str(club_id))
+    original_name = _slugify(Path(file.filename).stem)
     file_ext = Path(file.filename).suffix or ".csv"
-    file_name = f"attendees_{uuid.uuid4().hex}{file_ext}"
-    storage_path = f"clubs/{club_id}/imports/{file_name}"
+    file_name = f"{club_slug}_{original_name}_{uuid.uuid4().hex[:8]}{file_ext}"
+    storage_path = f"clubs/{club_slug}/imports/{file_name}"
     file_url = await StorageService.upload_bytes(storage_path, content, file.content_type or "text/csv")
     import_id = uuid.uuid4()
 
@@ -482,8 +500,8 @@ async def upload_attendees_csv_file(
             VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count, :file_size_bytes)
             """,
             {
-                "id": import_id,
-                "club_id": club_id,
+                "id": str(import_id),
+                "club_id": str(club_id),
                 "filename": file.filename,
                 "file_path": file_url,
                 "role": role,
@@ -498,8 +516,8 @@ async def upload_attendees_csv_file(
             VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count)
             """,
             {
-                "id": import_id,
-                "club_id": club_id,
+                "id": str(import_id),
+                "club_id": str(club_id),
                 "filename": file.filename,
                 "file_path": file_url,
                 "role": role,
@@ -676,9 +694,11 @@ async def import_attendees_csv_file(
         )
 
     # Upload CSV to Supabase Storage
+    club_slug = await _get_club_slug(str(club_id))
+    original_name = _slugify(Path(file.filename).stem)
     file_ext = Path(file.filename).suffix or ".csv"
-    file_name = f"attendees_{uuid.uuid4().hex}{file_ext}"
-    storage_path = f"clubs/{club_id}/imports/{file_name}"
+    file_name = f"{club_slug}_{original_name}_{uuid.uuid4().hex[:8]}{file_ext}"
+    storage_path = f"clubs/{club_slug}/imports/{file_name}"
     file_url = await StorageService.upload_bytes(storage_path, content, file.content_type or "text/csv")
     import_id = uuid.uuid4()
 
@@ -743,8 +763,8 @@ async def import_attendees_csv_file(
             VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count, :file_size_bytes)
             """,
             {
-                "id": import_id,
-                "club_id": club_id,
+                "id": str(import_id),
+                "club_id": str(club_id),
                 "filename": file.filename,
                 "file_path": file_url,
                 "role": role,
@@ -759,8 +779,8 @@ async def import_attendees_csv_file(
             VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count)
             """,
             {
-                "id": import_id,
-                "club_id": club_id,
+                "id": str(import_id),
+                "club_id": str(club_id),
                 "filename": file.filename,
                 "file_path": file_url,
                 "role": role,
@@ -806,9 +826,11 @@ async def import_attendees_simple(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Global storage limit exceeded (500 MB).")
 
     # Upload CSV to Supabase Storage
+    club_slug = await _get_club_slug(str(club_id))
+    original_name = _slugify(Path(file.filename).stem)
     file_ext = Path(file.filename).suffix or ".csv"
-    file_name = f"attendees_{uuid.uuid4().hex}{file_ext}"
-    storage_path = f"clubs/{club_id}/imports/{file_name}"
+    file_name = f"{club_slug}_{original_name}_{uuid.uuid4().hex[:8]}{file_ext}"
+    storage_path = f"clubs/{club_slug}/imports/{file_name}"
     file_url = await StorageService.upload_bytes(storage_path, content, file.content_type or "text/csv")
     import_id = uuid.uuid4()
 
@@ -828,8 +850,8 @@ async def import_attendees_simple(
                 VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count, :file_size_bytes)
                 """,
                 {
-                    "id": import_id,
-                    "club_id": club_id,
+                    "id": str(import_id),
+                    "club_id": str(club_id),
                     "filename": final_batch_name,
                     "file_path": file_url,
                     "role": role,
@@ -844,8 +866,8 @@ async def import_attendees_simple(
                 VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count)
                 """,
                 {
-                    "id": import_id,
-                    "club_id": club_id,
+                    "id": str(import_id),
+                    "club_id": str(club_id),
                     "filename": final_batch_name,
                     "file_path": file_url,
                     "role": role,
@@ -874,6 +896,9 @@ async def import_attendees_simple(
             "import_id": str(import_id)
         })
 
+    # Log the import FIRST (attendees.import_id FK references attendee_imports.id)
+    await log_import(len(new_records) + len(duplicates))
+
     values_placeholder = ",".join([
         f"(:id_{i}, :club_id_{i}, :name_{i}, :student_id_{i}, :email_{i}, :course_{i}, :role_{i}, :uploaded_by_{i}, :import_id_{i})"
         for i in range(len(records))
@@ -898,9 +923,6 @@ async def import_attendees_simple(
         params[f"import_id_{i}"] = record["import_id"]
 
     await database.execute(query, params)
-
-    # Log the import
-    await log_import(len(new_records) + len(duplicates))
 
     return {"imported": len(new_records), "duplicates": len(duplicates)}
 

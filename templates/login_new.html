@@ -133,20 +133,6 @@
             cursor: not-allowed;
         }
 
-        .demo-credentials {
-            background: rgba(255, 255, 255, 0.06);
-            border-left: 4px solid #6d6bff;
-            padding: 1rem;
-            border-radius: 10px;
-            margin-top: 1.5rem;
-            font-size: 0.85rem;
-            color: #cfd5ff;
-        }
-
-        .demo-credentials strong {
-            color: #e6e9ff;
-        }
-
         .back-link {
             text-align: center;
             margin-top: 1.5rem;
@@ -292,13 +278,6 @@
                 </button>
             </form>
 
-            <!-- Demo Credentials -->
-            <div class="demo-credentials">
-                <strong><i class="fas fa-info-circle"></i> Demo Credentials:</strong><br>
-                <span id="demoEmailLabel">Club Email: </span><strong id="demoEmail">admin@club.com</strong><br>
-                Password: <strong>SecurePass123</strong>
-            </div>
-
             <!-- Back Link -->
             <div class="back-link">
                 <a href="/">
@@ -326,16 +305,6 @@
                     }
                 });
 
-                // Update demo email based on type
-                const demoEmail = document.getElementById('demoEmail');
-                const demoEmailLabel = document.getElementById('demoEmailLabel');
-                if (userType === 'platform') {
-                    demoEmail.textContent = 'platform@certifyhub.com';
-                    demoEmailLabel.textContent = 'Platform Email: ';
-                } else {
-                    demoEmail.textContent = 'admin@club.com';
-                    demoEmailLabel.textContent = 'Club Email: ';
-                }
             });
         });
 
