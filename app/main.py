@@ -164,6 +164,12 @@ async def platform_resources_page(request: Request):
     return templates.TemplateResponse("platform_resources.html", {"request": request})
 
 
+@app.get("/platform/ui/platform-admins", response_class=HTMLResponse)
+async def platform_manage_admins_page(request: Request):
+    """Platform admin management page"""
+    return templates.TemplateResponse("platform_manage_admins.html", {"request": request})
+
+
 @app.get("/admin/ui/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
     """Dashboard page"""

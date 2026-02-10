@@ -574,3 +574,174 @@ async def get_storage_stats(
         "active_clubs": stats["active_clubs"]
     }
 
+
+# ──────────────── Platform Admin Management ────────────────
+
+@router.get("/platform-admins")
+async def list_platform_admins(
+    current_admin: dict = Depends(get_platform_admin)
+):
+    """List all platform admins"""
+    from app.database import database
+
+    rows = await database.fetch_all(
+        """
+        SELECT id, email, full_name, is_active, last_login,
+               password_changed_at, must_change_password, created_at
+        FROM platform_admins
+        ORDER BY created_at ASC
+        """
+    )
+    return {"admins": [dict(r) for r in rows], "total": len(rows)}
+
+
+@router.post("/platform-admins", status_code=status.HTTP_201_CREATED)
+async def create_platform_admin(
+    request: CreateClubAdminRequest,
+    current_admin: dict = Depends(get_platform_admin)
+):
+    """Create a new platform admin (reuses CreateClubAdminRequest: email + full_name)"""
+    from app.database import database
+    from app.auth import hash_password, generate_random_password
+    import uuid
+
+    existing = await database.fetch_one(
+        "SELECT id FROM platform_admins WHERE email = :email",
+        {"email": request.email}
+    )
+    if existing:
+        raise HTTPException(status_code=409, detail="A platform admin with this email already exists.")
+
+    temp_password = generate_random_password(12)
+    password_hash = hash_password(temp_password)
+    admin_id = str(uuid.uuid4())
+
+    await database.execute(
+        """
+        INSERT INTO platform_admins (id, email, password_hash, full_name, must_change_password)
+        VALUES (:id, :email, :password_hash, :full_name, TRUE)
+        """,
+        {
+            "id": admin_id,
+            "email": request.email,
+            "password_hash": password_hash,
+            "full_name": request.full_name,
+        }
+    )
+
+    return {
+        "id": admin_id,
+        "email": request.email,
+        "full_name": request.full_name,
+        "temp_password": temp_password,
+        "message": "Platform admin created. Share the temporary password securely."
+    }
+
+
+@router.put("/platform-admins/{admin_id}/reset-password")
+async def reset_platform_admin_password(
+    admin_id: UUID,
+    current_admin: dict = Depends(get_platform_admin)
+):
+    """Reset a platform admin's password"""
+    from app.database import database
+    from app.auth import hash_password, generate_random_password
+
+    admin = await database.fetch_one(
+        "SELECT id, email, full_name FROM platform_admins WHERE id = :id",
+        {"id": str(admin_id)}
+    )
+    if not admin:
+        raise HTTPException(status_code=404, detail="Platform admin not found")
+
+    new_password = generate_random_password(12)
+    password_hash = hash_password(new_password)
+
+    await database.execute(
+        """
+        UPDATE platform_admins
+        SET password_hash = :hash, must_change_password = TRUE, password_changed_at = NOW()
+        WHERE id = :id
+        """,
+        {"hash": password_hash, "id": str(admin_id)}
+    )
+
+    return {
+        "status": "success",
+        "admin_email": admin["email"],
+        "admin_name": admin["full_name"],
+        "temp_password": new_password,
+        "message": "Password reset. Admin must change password on next login."
+    }
+
+
+@router.put("/platform-admins/{admin_id}/deactivate")
+async def deactivate_platform_admin(
+    admin_id: UUID,
+    current_admin: dict = Depends(get_platform_admin)
+):
+    """Deactivate a platform admin (cannot deactivate yourself)"""
+    from app.database import database
+
+    if str(admin_id) == str(current_admin["user_id"]):
+        raise HTTPException(status_code=400, detail="You cannot deactivate your own account.")
+
+    admin = await database.fetch_one(
+        "SELECT id, full_name FROM platform_admins WHERE id = :id",
+        {"id": str(admin_id)}
+    )
+    if not admin:
+        raise HTTPException(status_code=404, detail="Platform admin not found")
+
+    await database.execute(
+        "UPDATE platform_admins SET is_active = FALSE WHERE id = :id",
+        {"id": str(admin_id)}
+    )
+    return {"status": "success", "message": f"Platform admin '{admin['full_name']}' deactivated."}
+
+
+@router.put("/platform-admins/{admin_id}/activate")
+async def activate_platform_admin(
+    admin_id: UUID,
+    current_admin: dict = Depends(get_platform_admin)
+):
+    """Reactivate a deactivated platform admin"""
+    from app.database import database
+
+    admin = await database.fetch_one(
+        "SELECT id, full_name FROM platform_admins WHERE id = :id",
+        {"id": str(admin_id)}
+    )
+    if not admin:
+        raise HTTPException(status_code=404, detail="Platform admin not found")
+
+    await database.execute(
+        "UPDATE platform_admins SET is_active = TRUE WHERE id = :id",
+        {"id": str(admin_id)}
+    )
+    return {"status": "success", "message": f"Platform admin '{admin['full_name']}' activated."}
+
+
+@router.delete("/platform-admins/{admin_id}")
+async def delete_platform_admin(
+    admin_id: UUID,
+    current_admin: dict = Depends(get_platform_admin)
+):
+    """Permanently delete a platform admin (cannot delete yourself)"""
+    from app.database import database
+
+    if str(admin_id) == str(current_admin["user_id"]):
+        raise HTTPException(status_code=400, detail="You cannot delete your own account.")
+
+    admin = await database.fetch_one(
+        "SELECT id, full_name FROM platform_admins WHERE id = :id",
+        {"id": str(admin_id)}
+    )
+    if not admin:
+        raise HTTPException(status_code=404, detail="Platform admin not found")
+
+    await database.execute(
+        "DELETE FROM platform_admins WHERE id = :id",
+        {"id": str(admin_id)}
+    )
+    return {"status": "success", "message": f"Platform admin '{admin['full_name']}' permanently deleted."}
