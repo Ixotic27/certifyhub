@@ -14,9 +14,10 @@
 
     <script>
         (function() {
+            // Redirect localhost to 127.0.0.1 if needed
             const host = window.location.hostname;
-            const port = window.location.port || '8000';
-            if ((host === 'localhost' || host === '127.0.0.1') && host !== '127.0.0.1') {
+            const port = window.location.port || '8001';
+            if (host === 'localhost') {
                 const target = `http://127.0.0.1:${port}${window.location.pathname}${window.location.search}`;
                 window.location.replace(target);
             }
@@ -76,9 +77,9 @@
                             <i class="fas fa-user-circle"></i> {{ user.email }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-                            <li><a class="dropdown-item" href="/auth/change-password">Change Password</a></li>
+                            <li><a class="dropdown-item" href="/admin/ui/settings">Change Password</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="/auth/logout">Logout</a></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="event.preventDefault(); localStorage.removeItem('token'); localStorage.removeItem('access_token'); sessionStorage.clear(); window.location.href='/login';">Logout</a></li>
                         </ul>
                     </li>
                 </ul>

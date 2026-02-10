@@ -53,3 +53,41 @@ class StorageService:
         if resp.status_code != 200:
             raise HTTPException(status_code=404, detail="Stored file not found")
         return resp.text
+
+    @staticmethod
+    async def delete_path(path: str) -> None:
+        StorageService._ensure_config()
+
+        base = settings.SUPABASE_URL.rstrip("/")
+        bucket = settings.STORAGE_BUCKET
+        url = f"{base}/storage/v1/object/{bucket}/{path}"
+
+        headers = {
+            "Authorization": f"Bearer {settings.SUPABASE_KEY}",
+            "apikey": settings.SUPABASE_KEY
+        }
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.delete(url, headers=headers)
+
+        if resp.status_code not in (200, 204, 404):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Storage delete failed: {resp.text}"
+            )
+
+    @staticmethod
+    async def delete_by_url(file_url: str) -> None:
+        StorageService._ensure_config()
+
+        base = settings.SUPABASE_URL.rstrip("/")
+        bucket = settings.STORAGE_BUCKET
+        prefix = f"{base}/storage/v1/object/public/{bucket}/"
+
+        if file_url.startswith(prefix):
+            path = file_url[len(prefix):]
+            await StorageService.delete_path(path)
+            return
+
+        # If URL format is unexpected, do not fail hard
+        return

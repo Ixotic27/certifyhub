@@ -6,7 +6,7 @@ Business logic for attendee management and CSV import
 import csv
 import uuid
 import io
-from typing import List, Tuple
+from typing import Optional, List, Tuple
 from app.database import database
 from app.schemas.attendee import CSVValidationError
 from app.services.activity_log_service import ActivityLogService
@@ -137,7 +137,7 @@ class AttendeeService:
         return validated_attendees, errors
     
     @staticmethod
-    async def upload_attendees(club_id: str, attendees: List[dict]) -> int:
+    async def upload_attendees(club_id: str, attendees: List[dict], import_id: Optional[str] = None) -> int:
         """
         Insert validated attendees into database
         
@@ -157,19 +157,20 @@ class AttendeeService:
                 "email": attendee.get("email"),
                 "student_id": attendee["student_id"],
                 "role": attendee.get("role", "student"),
-                "certificate_generated_count": 0
+                "certificate_generated_count": 0,
+                "import_id": import_id
             })
         
         # Bulk insert
         try:
             values_placeholder = ",".join([
-                f"(:id_{i}, :club_id_{i}, :name_{i}, :email_{i}, :student_id_{i}, :role_{i}, :cert_count_{i})"
+                f"(:id_{i}, :club_id_{i}, :name_{i}, :email_{i}, :student_id_{i}, :role_{i}, :cert_count_{i}, :import_id_{i})"
                 for i in range(len(records))
             ])
             
             query = f"""
                 INSERT INTO attendees 
-                (id, club_id, name, email, student_id, role, certificate_generated_count)
+                (id, club_id, name, email, student_id, role, certificate_generated_count, import_id)
                 VALUES {values_placeholder}
             """
             
@@ -182,6 +183,7 @@ class AttendeeService:
                 params[f"student_id_{i}"] = record["student_id"]
                 params[f"role_{i}"] = record["role"]
                 params[f"cert_count_{i}"] = record["certificate_generated_count"]
+                params[f"import_id_{i}"] = record["import_id"]
             
             await database.execute(query, params)
             

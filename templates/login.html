@@ -266,7 +266,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         
         // Redirect based on user type
         if (data.user_type === 'platform_admin') {
-            window.location.href = '/platform/ui/dashboard';
+            window.location.href = '/platform/dashboard';
         } else {
             window.location.href = '/admin/ui/dashboard';
         }

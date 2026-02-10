@@ -12,8 +12,15 @@ from app.config import settings
 # Database URL
 DATABASE_URL = settings.DATABASE_URL
 
+# For Supabase connection pooler (pgbouncer), disable prepared statements
+# Add ?prepared_statement_cache_size=0 if using transaction mode pooler
+if "supabase.com" in DATABASE_URL or "pooler.supabase.com" in DATABASE_URL:
+    db_options = {"min_size": 1, "max_size": 5, "statement_cache_size": 0}
+else:
+    db_options = {"min_size": 1, "max_size": 10}
+
 # Create database instance for async queries
-database = Database(DATABASE_URL)
+database = Database(DATABASE_URL, **db_options)
 
 # Create SQLAlchemy engine for migrations
 engine = create_engine(

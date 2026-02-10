@@ -21,6 +21,21 @@ class TextFieldType(str, Enum):
 
 class TextFieldCoordinate(BaseModel):
     """Coordinate for a text field on the certificate"""
+    model_config = {
+        "extra": "ignore",
+        "json_schema_extra": {
+            "examples": [{
+                "field_type": "name",
+                "field_name": "Recipient Name",
+                "x": 100,
+                "y": 200,
+                "font_size": 48,
+                "font_color": "#000000",
+                "font_family": "Arial"
+            }]
+        }
+    }
+
     field_type: TextFieldType = Field(
         ..., 
         validation_alias=AliasChoices("field_type", "field"),
@@ -43,17 +58,7 @@ class TextFieldCoordinate(BaseModel):
     )
     font_family: str = Field(default="Arial", description="Font family name")
     align: str = Field(default="left", description="Text alignment (left, center, right)")
-    
-    class Config:
-        example = {
-            "field_type": "name",
-            "field_name": "Recipient Name",
-            "x": 100,
-            "y": 200,
-            "font_size": 48,
-            "font_color": "#000000",
-            "font_family": "Arial"
-        }
+    underline_width: Optional[int] = Field(default=None, description="Underline width in pixels")
 
 
 class CreateTemplateRequest(BaseModel):

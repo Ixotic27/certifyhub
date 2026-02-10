@@ -16,10 +16,11 @@ from app.services.attendee_service import attendee_service
 from app.services.csv_parser import CSVParser
 from app.services.storage_service import StorageService
 from app.services.admin_service import admin_service
+from app.services.image_optimizer import image_optimizer
 from app.services.activity_log_service import ActivityLogService
 from app.schemas.template import CreateTemplateRequest, UpdateTemplateCoordinatesRequest, TemplateResponse, TemplateListResponse, TemplateDetailResponse
 from app.schemas.attendee import CSVUploadRequest, CSVUploadResponse, AttendeeResponse, AttendeeListResponse
-from app.schemas.admin import AdminDashboardResponse
+from app.schemas.admin import AdminDashboardResponse, CreateCertificateEventRequest, CertificateEventResponse
 from app.schemas.activity_log import ActivityLogResponse, ActivityStatsResponse
 
 router = APIRouter()
@@ -41,6 +42,94 @@ async def get_admin_dashboard(
         )
 
     return await admin_service.get_dashboard_stats(str(club_id))
+
+
+@router.post("/certificate-events", response_model=CertificateEventResponse)
+async def create_certificate_event(
+    payload: CreateCertificateEventRequest,
+    current_admin: dict = Depends(get_club_admin)
+):
+    club_id = current_admin.get("club_id")
+    if not club_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Club admin must be associated with a club"
+        )
+
+    template = await database.fetch_one(
+        """
+        SELECT id
+        FROM certificate_templates
+        WHERE id = :template_id AND club_id = :club_id AND is_active = TRUE
+        """,
+        {"template_id": str(payload.template_id), "club_id": str(club_id)}
+    )
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    import_row = await database.fetch_one(
+        """
+        SELECT id, role
+        FROM attendee_imports
+        WHERE id = :import_id AND club_id = :club_id
+        """,
+        {"import_id": str(payload.import_id), "club_id": str(club_id)}
+    )
+    if not import_row:
+        raise HTTPException(status_code=404, detail="CSV import not found")
+
+    event_id = uuid.uuid4()
+    role = import_row["role"] or "student"
+
+    await database.execute(
+        """
+        INSERT INTO certificate_events
+        (id, club_id, template_id, import_id, name, description, event_date, role)
+        VALUES (:id, :club_id, :template_id, :import_id, :name, :description, :event_date, :role)
+        """,
+        {
+            "id": str(event_id),
+            "club_id": str(club_id),
+            "template_id": str(payload.template_id),
+            "import_id": str(payload.import_id),
+            "name": payload.name,
+            "description": payload.description,
+            "event_date": payload.event_date,
+            "role": role
+        }
+    )
+
+    created = await database.fetch_one(
+        """
+        SELECT * FROM certificate_events
+        WHERE id = :id
+        """,
+        {"id": str(event_id)}
+    )
+    return dict(created)
+
+
+@router.get("/certificate-events")
+async def list_certificate_events(
+    current_admin: dict = Depends(get_club_admin)
+):
+    club_id = current_admin.get("club_id")
+    if not club_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Club admin must be associated with a club"
+        )
+
+    rows = await database.fetch_all(
+        """
+        SELECT * FROM certificate_events
+        WHERE club_id = :club_id
+        ORDER BY event_date DESC, created_at DESC
+        """,
+        {"club_id": str(club_id)}
+    )
+
+    return {"total": len(rows), "events": [dict(r) for r in rows]}
 
 
 @router.post("/templates", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
@@ -95,40 +184,32 @@ async def upload_certificate_template_file(
             detail="Audience must be student or management"
         )
 
-    # Enforce per-club storage quota (100 MB) across template images + CSV imports
-    max_bytes = 100 * 1024 * 1024
-    size_row = await database.fetch_one(
+    # Enforce global storage quota (500 MB shared pool)
+    max_bytes = 500 * 1024 * 1024
+    global_usage = await database.fetch_one(
         """
         SELECT
-            COALESCE(SUM(image_size_bytes), 0) AS template_bytes
-        FROM certificate_templates
-        WHERE club_id = :club_id
-        """,
-        {"club_id": str(club_id)}
-    )
-    import_size_row = await database.fetch_one(
+            (SELECT COALESCE(SUM(image_size_bytes), 0) FROM certificate_templates) +
+            (SELECT COALESCE(SUM(file_size_bytes), 0) FROM attendee_imports) AS total_bytes
         """
-        SELECT
-            COALESCE(SUM(file_size_bytes), 0) AS import_bytes
-        FROM attendee_imports
-        WHERE club_id = :club_id
-        """,
-        {"club_id": str(club_id)}
     )
-    used_bytes = int((size_row["template_bytes"] if size_row else 0) or 0) + int((import_size_row["import_bytes"] if import_size_row else 0) or 0)
+    used_bytes = int(global_usage["total_bytes"] or 0) if global_usage else 0
 
     content = await image.read()
-    if used_bytes + len(content) > max_bytes:
+    
+    # Optimize image (resize to max 2048px + strip metadata)
+    optimized_content, optimized_type = image_optimizer.optimize(content, image.content_type or "image/png")
+    
+    if used_bytes + len(optimized_content) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Storage limit exceeded (100 MB per club)."
+            detail="Global storage limit exceeded (500 MB)."
         )
 
-    # Upload image to Supabase Storage
-    file_ext = Path(image.filename).suffix or ".png"
-    file_name = f"template_{uuid.uuid4().hex}{file_ext}"
+    # Upload optimized image to Supabase Storage
+    file_name = f"template_{uuid.uuid4().hex}.png"
     storage_path = f"clubs/{club_id}/templates/{file_name}"
-    image_url = await StorageService.upload_bytes(storage_path, content, image.content_type or "image/png")
+    image_url = await StorageService.upload_bytes(storage_path, optimized_content, optimized_type)
 
     try:
         parsed_fields = json.loads(text_fields) if text_fields else []
@@ -149,7 +230,7 @@ async def upload_certificate_template_file(
         SET image_size_bytes = :size
         WHERE id = :template_id
         """,
-        {"size": len(content), "template_id": template["id"]}
+        {"size": len(optimized_content), "template_id": template["id"]}
     )
     return template
 
@@ -358,32 +439,21 @@ async def upload_attendees_csv_file(
     content = await file.read()
     csv_content = content.decode("utf-8", errors="ignore")
 
-    # Enforce per-club storage quota (100 MB) across template images + CSV imports
-    max_bytes = 100 * 1024 * 1024
-    size_row = await database.fetch_one(
+    # Enforce global storage quota (500 MB shared pool)
+    max_bytes = 500 * 1024 * 1024
+    global_usage = await database.fetch_one(
         """
         SELECT
-            COALESCE(SUM(image_size_bytes), 0) AS template_bytes
-        FROM certificate_templates
-        WHERE club_id = :club_id
-        """,
-        {"club_id": str(club_id)}
-    )
-    import_size_row = await database.fetch_one(
+            (SELECT COALESCE(SUM(image_size_bytes), 0) FROM certificate_templates) +
+            (SELECT COALESCE(SUM(file_size_bytes), 0) FROM attendee_imports) AS total_bytes
         """
-        SELECT
-            COALESCE(SUM(file_size_bytes), 0) AS import_bytes
-        FROM attendee_imports
-        WHERE club_id = :club_id
-        """,
-        {"club_id": str(club_id)}
     )
-    used_bytes = int((size_row["template_bytes"] if size_row else 0) or 0) + int((import_size_row["import_bytes"] if import_size_row else 0) or 0)
+    used_bytes = int(global_usage["total_bytes"] or 0) if global_usage else 0
 
     if used_bytes + len(content) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Storage limit exceeded (100 MB per club)."
+            detail="Global storage limit exceeded (500 MB)."
         )
 
     # Upload CSV to Supabase Storage
@@ -391,6 +461,7 @@ async def upload_attendees_csv_file(
     file_name = f"attendees_{uuid.uuid4().hex}{file_ext}"
     storage_path = f"clubs/{club_id}/imports/{file_name}"
     file_url = await StorageService.upload_bytes(storage_path, content, file.content_type or "text/csv")
+    import_id = uuid.uuid4()
 
     validated_attendees, errors = await attendee_service.parse_and_validate_csv(
         csv_content,
@@ -400,18 +471,18 @@ async def upload_attendees_csv_file(
     )
 
     if validated_attendees:
-        successful_count = await attendee_service.upload_attendees(str(club_id), validated_attendees)
+        successful_count = await attendee_service.upload_attendees(str(club_id), validated_attendees, import_id=str(import_id))
     else:
         successful_count = 0
 
     try:
         await database.execute(
             """
-            INSERT INTO attendee_imports (id, club_id, filename, file_path, role, rows_count)
-            VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count)
+            INSERT INTO attendee_imports (id, club_id, filename, file_path, role, rows_count, file_size_bytes)
+            VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count, :file_size_bytes)
             """,
             {
-                "id": uuid.uuid4(),
+                "id": import_id,
                 "club_id": club_id,
                 "filename": file.filename,
                 "file_path": file_url,
@@ -421,7 +492,20 @@ async def upload_attendees_csv_file(
             }
         )
     except Exception:
-        pass
+        await database.execute(
+            """
+            INSERT INTO attendee_imports (id, club_id, filename, file_path, role, rows_count)
+            VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count)
+            """,
+            {
+                "id": import_id,
+                "club_id": club_id,
+                "filename": file.filename,
+                "file_path": file_url,
+                "role": role,
+                "rows_count": successful_count + len(errors)
+            }
+        )
 
     return {
         "club_id": club_id,
@@ -574,32 +658,21 @@ async def import_attendees_csv_file(
 
     content = await file.read()
 
-    # Enforce per-club storage quota (100 MB) across template images + CSV imports
-    max_bytes = 100 * 1024 * 1024
-    size_row = await database.fetch_one(
+    # Enforce global storage quota (500 MB shared pool)
+    max_bytes = 500 * 1024 * 1024
+    global_usage = await database.fetch_one(
         """
         SELECT
-            COALESCE(SUM(image_size_bytes), 0) AS template_bytes
-        FROM certificate_templates
-        WHERE club_id = :club_id
-        """,
-        {"club_id": str(club_id)}
-    )
-    import_size_row = await database.fetch_one(
+            (SELECT COALESCE(SUM(image_size_bytes), 0) FROM certificate_templates) +
+            (SELECT COALESCE(SUM(file_size_bytes), 0) FROM attendee_imports) AS total_bytes
         """
-        SELECT
-            COALESCE(SUM(file_size_bytes), 0) AS import_bytes
-        FROM attendee_imports
-        WHERE club_id = :club_id
-        """,
-        {"club_id": str(club_id)}
     )
-    used_bytes = int((size_row["template_bytes"] if size_row else 0) or 0) + int((import_size_row["import_bytes"] if import_size_row else 0) or 0)
+    used_bytes = int(global_usage["total_bytes"] or 0) if global_usage else 0
 
     if used_bytes + len(content) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Storage limit exceeded (100 MB per club)."
+            detail="Global storage limit exceeded (500 MB)."
         )
 
     # Upload CSV to Supabase Storage
@@ -607,6 +680,7 @@ async def import_attendees_csv_file(
     file_name = f"attendees_{uuid.uuid4().hex}{file_ext}"
     storage_path = f"clubs/{club_id}/imports/{file_name}"
     file_url = await StorageService.upload_bytes(storage_path, content, file.content_type or "text/csv")
+    import_id = uuid.uuid4()
 
     parsed_rows = CSVParser.parse_attendee_csv(content)
 
@@ -669,7 +743,7 @@ async def import_attendees_csv_file(
             VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count, :file_size_bytes)
             """,
             {
-                "id": uuid.uuid4(),
+                "id": import_id,
                 "club_id": club_id,
                 "filename": file.filename,
                 "file_path": file_url,
@@ -679,7 +753,20 @@ async def import_attendees_csv_file(
             }
         )
     except Exception:
-        pass
+        await database.execute(
+            """
+            INSERT INTO attendee_imports (id, club_id, filename, file_path, role, rows_count)
+            VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count)
+            """,
+            {
+                "id": import_id,
+                "club_id": club_id,
+                "filename": file.filename,
+                "file_path": file_url,
+                "role": role,
+                "rows_count": len(new_records) + len(duplicates)
+            }
+        )
 
     return {
         "imported": len(new_records),
@@ -704,26 +791,26 @@ async def import_attendees_simple(
 
     content = await file.read()
 
-    # Enforce per-club storage quota (100 MB)
-    max_bytes = 100 * 1024 * 1024
-    size_row = await database.fetch_one(
-        "SELECT COALESCE(SUM(image_size_bytes), 0) AS template_bytes FROM certificate_templates WHERE club_id = :club_id",
-        {"club_id": str(club_id)}
+    # Enforce global storage quota (500 MB shared pool)
+    max_bytes = 500 * 1024 * 1024
+    global_usage = await database.fetch_one(
+        """
+        SELECT
+            (SELECT COALESCE(SUM(image_size_bytes), 0) FROM certificate_templates) +
+            (SELECT COALESCE(SUM(file_size_bytes), 0) FROM attendee_imports) AS total_bytes
+        """
     )
-    import_size_row = await database.fetch_one(
-        "SELECT COALESCE(SUM(file_size_bytes), 0) AS import_bytes FROM attendee_imports WHERE club_id = :club_id",
-        {"club_id": str(club_id)}
-    )
-    used_bytes = int((size_row["template_bytes"] if size_row else 0) or 0) + int((import_size_row["import_bytes"] if import_size_row else 0) or 0)
+    used_bytes = int(global_usage["total_bytes"] or 0) if global_usage else 0
 
     if used_bytes + len(content) > max_bytes:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Storage limit exceeded (100 MB per club).")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Global storage limit exceeded (500 MB).")
 
     # Upload CSV to Supabase Storage
     file_ext = Path(file.filename).suffix or ".csv"
     file_name = f"attendees_{uuid.uuid4().hex}{file_ext}"
     storage_path = f"clubs/{club_id}/imports/{file_name}"
     file_url = await StorageService.upload_bytes(storage_path, content, file.content_type or "text/csv")
+    import_id = uuid.uuid4()
 
     parsed_rows = CSVParser.parse_attendee_csv(content)
 
@@ -732,10 +819,45 @@ async def import_attendees_simple(
         if not row.get("role"):
             row["role"] = role
 
+    async def log_import(rows_count: int) -> None:
+        final_batch_name = batch_name or file.filename
+        try:
+            await database.execute(
+                """
+                INSERT INTO attendee_imports (id, club_id, filename, file_path, role, rows_count, file_size_bytes)
+                VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count, :file_size_bytes)
+                """,
+                {
+                    "id": import_id,
+                    "club_id": club_id,
+                    "filename": final_batch_name,
+                    "file_path": file_url,
+                    "role": role,
+                    "rows_count": rows_count,
+                    "file_size_bytes": len(content)
+                }
+            )
+        except Exception:
+            await database.execute(
+                """
+                INSERT INTO attendee_imports (id, club_id, filename, file_path, role, rows_count)
+                VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count)
+                """,
+                {
+                    "id": import_id,
+                    "club_id": club_id,
+                    "filename": final_batch_name,
+                    "file_path": file_url,
+                    "role": role,
+                    "rows_count": rows_count
+                }
+            )
+
     # Check duplicates without template filter
     new_records, duplicates = await CSVParser.check_duplicates_simple(parsed_rows, str(club_id))
 
     if not new_records:
+        await log_import(len(parsed_rows))
         return {"imported": 0, "duplicates": len(duplicates)}
 
     records = []
@@ -748,17 +870,18 @@ async def import_attendees_simple(
             "email": attendee.get("email"),
             "course": attendee.get("course"),
             "role": attendee.get("role") or "student",
-            "uploaded_by": current_admin.get("user_id")
+            "uploaded_by": current_admin.get("user_id"),
+            "import_id": str(import_id)
         })
 
     values_placeholder = ",".join([
-        f"(:id_{i}, :club_id_{i}, :name_{i}, :student_id_{i}, :email_{i}, :course_{i}, :role_{i}, :uploaded_by_{i})"
+        f"(:id_{i}, :club_id_{i}, :name_{i}, :student_id_{i}, :email_{i}, :course_{i}, :role_{i}, :uploaded_by_{i}, :import_id_{i})"
         for i in range(len(records))
     ])
 
     query = f"""
         INSERT INTO attendees
-        (id, club_id, name, student_id, email, course, role, uploaded_by)
+        (id, club_id, name, student_id, email, course, role, uploaded_by, import_id)
         VALUES {values_placeholder}
     """
 
@@ -772,29 +895,12 @@ async def import_attendees_simple(
         params[f"course_{i}"] = record["course"]
         params[f"role_{i}"] = record["role"]
         params[f"uploaded_by_{i}"] = record["uploaded_by"]
+        params[f"import_id_{i}"] = record["import_id"]
 
     await database.execute(query, params)
 
     # Log the import
-    final_batch_name = batch_name or file.filename
-    try:
-        await database.execute(
-            """
-            INSERT INTO attendee_imports (id, club_id, filename, file_path, role, rows_count, file_size_bytes)
-            VALUES (:id, :club_id, :filename, :file_path, :role, :rows_count, :file_size_bytes)
-            """,
-            {
-                "id": uuid.uuid4(),
-                "club_id": club_id,
-                "filename": final_batch_name,
-                "file_path": file_url,
-                "role": role,
-                "rows_count": len(new_records) + len(duplicates),
-                "file_size_bytes": len(content)
-            }
-        )
-    except Exception:
-        pass
+    await log_import(len(new_records) + len(duplicates))
 
     return {"imported": len(new_records), "duplicates": len(duplicates)}
 
@@ -904,6 +1010,51 @@ async def get_attendee_import_rows(
         })
 
     return {"rows": rows}
+
+
+@router.delete("/attendees/imports/{import_id}")
+async def delete_attendee_import(
+    import_id: UUID,
+    current_admin: dict = Depends(get_club_admin)
+):
+    club_id = current_admin.get("club_id")
+    if not club_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Club admin must be associated with a club"
+        )
+
+    row = await database.fetch_one(
+        """
+        SELECT id, file_path
+        FROM attendee_imports
+        WHERE id = :import_id AND club_id = :club_id
+        """,
+        {"import_id": str(import_id), "club_id": str(club_id)}
+    )
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Import not found")
+
+    file_path = row["file_path"]
+    if file_path:
+        try:
+            if str(file_path).startswith("http"):
+                await StorageService.delete_by_url(str(file_path))
+            else:
+                local_path = Path(str(file_path))
+                if local_path.exists():
+                    local_path.unlink()
+        except Exception:
+            # Ignore storage cleanup errors and still remove DB record
+            pass
+
+    await database.execute(
+        "DELETE FROM attendee_imports WHERE id = :import_id AND club_id = :club_id",
+        {"import_id": str(import_id), "club_id": str(club_id)}
+    )
+
+    return {"status": "deleted"}
 
 
 @router.get("/attendees", response_model=AttendeeListResponse)

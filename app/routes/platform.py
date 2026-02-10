@@ -273,3 +273,75 @@ async def reset_admin_password(
         "temp_password": new_password,
         "message": "Password reset. Admin must change password on next login."
     }
+
+
+@router.get("/storage/unused-templates")
+async def get_unused_templates(
+    days: int = Query(30, ge=1, le=365, description="Days of inactivity"),
+    current_admin: dict = Depends(get_platform_admin)
+):
+    """
+    List templates unused for N days (Platform Admin only).
+    These are candidates for cleanup.
+    """
+    templates = await admin_service.get_unused_templates(days)
+    return {
+        "days": days,
+        "count": len(templates),
+        "templates": templates
+    }
+
+
+@router.post("/storage/cleanup")
+async def cleanup_unused_templates(
+    days: int = Query(30, ge=1, le=365, description="Days of inactivity"),
+    current_admin: dict = Depends(get_platform_admin)
+):
+    """
+    Cleanup templates unused for N days (Platform Admin only).
+    Deactivates templates and deletes their images from storage.
+    """
+    result = await admin_service.cleanup_unused_templates(days)
+    return {
+        "status": "success",
+        "days": days,
+        "cleaned_count": result["cleaned_count"],
+        "bytes_freed": result["bytes_freed"],
+        "bytes_freed_mb": round(result["bytes_freed"] / (1024 * 1024), 2)
+    }
+
+
+@router.get("/storage/stats")
+async def get_storage_stats(
+    current_admin: dict = Depends(get_platform_admin)
+):
+    """
+    Get global storage statistics (Platform Admin only).
+    """
+    from app.database import database
+    
+    stats = await database.fetch_one(
+        """
+        SELECT
+            (SELECT COALESCE(SUM(image_size_bytes), 0) FROM certificate_templates WHERE is_active = TRUE) AS template_bytes,
+            (SELECT COALESCE(SUM(file_size_bytes), 0) FROM attendee_imports) AS import_bytes,
+            (SELECT COUNT(*) FROM certificate_templates WHERE is_active = TRUE) AS active_templates,
+            (SELECT COUNT(*) FROM clubs WHERE is_active = TRUE) AS active_clubs
+        """
+    )
+    
+    template_bytes = int(stats["template_bytes"] or 0)
+    import_bytes = int(stats["import_bytes"] or 0)
+    total_used = template_bytes + import_bytes
+    limit = 500 * 1024 * 1024
+    
+    return {
+        "template_storage_bytes": template_bytes,
+        "import_storage_bytes": import_bytes,
+        "total_used_bytes": total_used,
+        "total_limit_bytes": limit,
+        "used_percentage": round((total_used / limit) * 100, 1),
+        "active_templates": stats["active_templates"],
+        "active_clubs": stats["active_clubs"]
+    }
+

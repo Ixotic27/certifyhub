@@ -3,6 +3,10 @@
 {% block title %}Attendees - CertifyHub{% endblock %}
 
 {% block content %}
+<!-- v3 -->
+<style>
+    .modal-backdrop.show { opacity: 0.85; }
+</style>
 <div class="container-fluid">
     <!-- Page Header -->
     <div class="row mb-4">
@@ -11,9 +15,9 @@
                 <h1 class="h3 fw-bold">
                     <i class="fas fa-users text-danger"></i> Attendees
                 </h1>
-                <p class="text-muted">Manage event attendees and their certificates</p>
+                <p class="text-muted mb-0">Manage event attendees and their certificates</p>
             </div>
-            <button class="btn btn-danger btn-lg" onclick="openUploadPanel()">
+            <button class="btn btn-danger btn-lg" id="openImportBtn">
                 <i class="fas fa-upload"></i> Import Attendees
             </button>
         </div>
@@ -58,7 +62,7 @@
     <!-- Search and Filter -->
     <div class="row mb-4">
         <div class="col-md-4">
-            <input type="text" class="form-control form-control-lg" id="searchInput" 
+            <input type="text" class="form-control form-control-lg" id="searchInput"
                    placeholder="Search by name or ID...">
         </div>
         <div class="col-md-2">
@@ -83,11 +87,13 @@
             </select>
         </div>
         <div class="col-md-2">
-            <button class="btn btn-outline-secondary w-100 btn-lg" onclick="loadAttendees()">
+            <button class="btn btn-outline-secondary w-100 btn-lg" id="refreshBtn">
                 <i class="fas fa-sync"></i> Refresh
             </button>
         </div>
     </div>
+
+    <div id="mainMsg" class="mb-3"></div>
 
     <!-- Attendees Table -->
     <div class="row">
@@ -109,17 +115,12 @@
                                     <th>Role</th>
                                     <th>Certificates</th>
                                     <th>Status</th>
-                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="attendeesTable">
-                                <tr>
-                                    <td colspan="8" class="text-center py-4">
-                                        <div class="spinner-border text-danger" role="status">
-                                            <span class="visually-hidden">Loading...</span>
-                                        </div>
-                                    </td>
-                                </tr>
+                                <tr><td colspan="7" class="text-center py-4">
+                                    <div class="spinner-border text-danger"></div>
+                                </td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -130,119 +131,72 @@
 
     <!-- Pagination -->
     <nav class="mt-4" id="pagination"></nav>
+
+    <!-- Confirm / Cancel below main table -->
+    <div class="justify-content-center gap-2 mt-3 d-none" id="mainActions">
+        <button class="btn btn-outline-secondary" id="cancelBtn">
+            <i class="fas fa-times me-1"></i>Cancel
+        </button>
+        <button class="btn btn-danger" id="confirmBtn">
+            <i class="fas fa-check me-1"></i>Confirm
+        </button>
+    </div>
 </div>
 
-<!-- Import Attendees Modal -->
-<div class="modal fade" id="uploadModal" tabindex="-1" data-bs-backdrop="static">
+<!-- ========== IMPORT MODAL ========== -->
+<div class="modal fade" id="importModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-upload"></i> Import Attendees from CSV
-                </h5>
-                <button type="button" class="btn-close btn-close-white" onclick="closeUploadPanel()"></button>
+                <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Import Attendees from CSV</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <!-- Step 1: File Selection -->
-                <div id="step1" class="upload-step">
-                    <div class="row g-3">
+                <!-- STEP 1: Select file -->
+                <div id="importStep1">
+                    <div class="row g-3 align-items-end">
                         <div class="col-md-4">
-                            <label class="form-label fw-bold">Batch Name (Optional)</label>
-                            <input type="text" id="uploadBatchName" class="form-control" placeholder="e.g., Workshop Jan 2026">
+                            <label class="form-label fw-bold">Batch Name <span class="text-muted fw-normal">(Optional)</span></label>
+                            <input type="text" id="batchName" class="form-control" placeholder="e.g., Workshop Jan 2026">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-bold">Default Role</label>
-                            <select class="form-select" id="uploadRole">
+                            <select class="form-select" id="defaultRole">
                                 <option value="student" selected>Student</option>
                                 <option value="management">Management</option>
                             </select>
                         </div>
-                        <div class="col-md-5">
+                        <div class="col-md-3">
                             <label class="form-label fw-bold">CSV File</label>
-                            <input type="file" id="uploadFile" class="form-control" accept=".csv" onchange="previewCSV()">
+                            <input type="file" id="csvFile" class="form-control" accept=".csv">
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-danger w-100" id="importBtn">
+                                <i class="fas fa-file-import me-1"></i>Import
+                            </button>
                         </div>
                     </div>
                     <div class="mt-3 p-3 bg-light rounded">
                         <small class="text-muted">
-                            <i class="fas fa-info-circle"></i> 
-                            <strong>Required columns:</strong> name, student_id<br>
-                            <strong>Optional columns:</strong> email, course, role
+                            <i class="fas fa-info-circle me-1"></i>
+                            <strong>Supported columns:</strong> name, student_id, email, course, role.
+                            Missing columns will appear empty.
                         </small>
                     </div>
                 </div>
 
-                <!-- Step 2: Preview -->
-                <div id="step2" class="upload-step" style="display: none;">
-                    <div class="alert alert-info">
-                        <i class="fas fa-eye"></i> <strong>Preview:</strong> Review the data below before importing.
-                        <span id="previewCount" class="badge bg-primary ms-2">0 records</span>
-                    </div>
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-sm table-bordered">
-                            <thead class="table-dark sticky-top">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>Student ID</th>
-                                    <th>Email</th>
-                                    <th>Course</th>
-                                    <th>Role</th>
-                                </tr>
-                            </thead>
-                            <tbody id="previewTable"></tbody>
-                        </table>
-                    </div>
-                </div>
-
                 <!-- Messages -->
-                <div class="mt-3" id="uploadMessage"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeUploadPanel()">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button type="button" class="btn btn-outline-primary" id="backBtn" onclick="backToStep1()" style="display: none;">
-                    <i class="fas fa-arrow-left"></i> Back
-                </button>
-                <button type="button" class="btn btn-danger" id="importBtn" onclick="confirmImport()" disabled>
-                    <i class="fas fa-check"></i> Import <span id="importCountBtn"></span>
-                </button>
+                <div id="importMsg" class="mt-3"></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Attendee Details Modal -->
-<div class="modal fade" id="detailsModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-user-circle text-danger"></i> Attendee Details
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div id="detailsContent">Loading...</div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-danger" id="downloadCertBtn" onclick="downloadCertificate()" style="display:none;">
-                    <i class="fas fa-download"></i> Download Certificate
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Toast Notification -->
-<div class="position-fixed top-0 end-0 p-3" style="z-index: 1100">
-    <div id="successToast" class="toast align-items-center text-bg-success border-0" role="alert">
+<!-- Toast -->
+<div class="position-fixed top-0 end-0 p-3" style="z-index:1100">
+    <div id="toast" class="toast align-items-center text-bg-success border-0" role="alert">
         <div class="d-flex">
-            <div class="toast-body">
-                <i class="fas fa-check-circle me-2"></i>
-                <span id="toastMessage">Success!</span>
-            </div>
+            <div class="toast-body"><i class="fas fa-check-circle me-2"></i><span id="toastMsg"></span></div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
         </div>
     </div>
@@ -250,467 +204,351 @@
 
 <script src="/static/js/api.js"></script>
 <script>
+// ==================== STATE ====================
 let allAttendees = [];
 let currentPage = 1;
 let pageSize = 10;
-let currentAttendeeId = null;
-let previewData = [];
-let uploadModal = null;
+let previewRows = [];
+let selectedFile = null;
+let skipResetOnHide = false;
+let importModalEl, importModal;
 
-document.addEventListener('DOMContentLoaded', async function() {
-    uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
-    
-    // Verify authentication first
-    const authOk = await verifyAuth();
-    if (!authOk) return;
-    
-    document.getElementById('pageSize').addEventListener('change', function() {
-        pageSize = parseInt(this.value);
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded', async () => {
+    importModalEl = document.getElementById('importModal');
+    importModal = new bootstrap.Modal(importModalEl);
+
+    const ok = await checkAuth();
+    if (!ok) return;
+
+    // Event listeners
+    document.getElementById('openImportBtn').addEventListener('click', openImport);
+    document.getElementById('importBtn').addEventListener('click', doImport);
+    document.getElementById('cancelBtn').addEventListener('click', cancelPreview);
+    document.getElementById('confirmBtn').addEventListener('click', doConfirm);
+    document.getElementById('refreshBtn').addEventListener('click', clearMainTable);
+    document.getElementById('searchInput').addEventListener('input', debounce(applyFilters, 300));
+    document.getElementById('statusFilter').addEventListener('change', applyFilters);
+    document.getElementById('roleFilter').addEventListener('change', applyFilters);
+    document.getElementById('pageSize').addEventListener('change', () => {
+        pageSize = parseInt(document.getElementById('pageSize').value);
         currentPage = 1;
-        filterAttendees();
+        applyFilters();
     });
-    
-    document.getElementById('searchInput').addEventListener('keyup', debounce(filterAttendees, 300));
-    document.getElementById('statusFilter').addEventListener('change', filterAttendees);
-    document.getElementById('roleFilter').addEventListener('change', filterAttendees);
-    
-    loadAttendees();
+
+    // Reset modal fully when hidden (by X, backdrop, or escape)
+    importModalEl.addEventListener('hidden.bs.modal', resetImport);
+
+    resetImport();
+    clearMainTable();
 });
 
-async function verifyAuth() {
-    const response = await API.request('/auth/me');
-    if (!response || !response.ok) {
+async function checkAuth() {
+    const r = await API.request('/auth/me');
+    if (!r || !r.ok || r.data?.user_type !== 'club_admin') {
         window.location.href = '/login';
         return false;
     }
-    
-    const userType = response.data?.user_type;
-    if (userType !== 'club_admin') {
-        alert('Access denied. Please log in with a club admin account.');
-        window.location.href = '/login';
-        return false;
-    }
-    
-    if (response.data?.club_id) {
-        localStorage.setItem('club_id', response.data.club_id);
-    }
+    if (r.data?.club_id) localStorage.setItem('club_id', r.data.club_id);
     return true;
 }
 
-function openUploadPanel() {
-    resetUploadPanel();
-    uploadModal.show();
+// ==================== IMPORT ====================
+function openImport() {
+    resetImport();
+    importModal.show();
 }
 
-function closeUploadPanel() {
-    resetUploadPanel();
-    uploadModal.hide();
+function resetImport() {
+    if (skipResetOnHide) {
+        skipResetOnHide = false;
+        return;
+    }
+    document.getElementById('batchName').value = '';
+    document.getElementById('defaultRole').value = 'student';
+    document.getElementById('csvFile').value = '';
+    document.getElementById('importMsg').innerHTML = '';
+    document.getElementById('importStep1').style.display = 'block';
+    previewRows = [];
+    selectedFile = null;
+    showMainActions(false);
 }
 
-function resetUploadPanel() {
-    document.getElementById('uploadBatchName').value = '';
-    document.getElementById('uploadRole').value = 'student';
-    document.getElementById('uploadFile').value = '';
-    document.getElementById('uploadMessage').innerHTML = '';
-    document.getElementById('previewTable').innerHTML = '';
-    document.getElementById('step1').style.display = 'block';
-    document.getElementById('step2').style.display = 'none';
-    document.getElementById('backBtn').style.display = 'none';
-    document.getElementById('importBtn').disabled = true;
-    document.getElementById('importCountBtn').textContent = '';
-    previewData = [];
-}
-
-function previewCSV() {
-    const file = document.getElementById('uploadFile').files[0];
-    if (!file) return;
-
+function doImport() {
+    const fileInput = document.getElementById('csvFile');
+    const file = fileInput.files[0];
+    if (!file) {
+        showImportMsg('Please select a CSV file first.', 'danger');
+        return;
+    }
+    selectedFile = file;
     const reader = new FileReader();
-    reader.onload = function(e) {
-        const text = e.target.result;
-        parseCSV(text);
-    };
+    reader.onload = (e) => parseAndPreview(e.target.result);
     reader.readAsText(file);
 }
 
-function parseCSV(text) {
-    const lines = text.split(/\r?\n/).filter(line => line.trim());
+function parseAndPreview(text) {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) {
-        showUploadMessage('CSV file is empty or has no data rows.', 'danger');
+        showImportMsg('CSV file is empty or has no data rows.', 'danger');
         return;
     }
 
-    // Parse headers
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/^\ufeff/, ''));
-    const nameIdx = headers.indexOf('name');
-    const sidIdx = headers.indexOf('student_id');
-    const emailIdx = headers.indexOf('email');
-    const courseIdx = headers.indexOf('course');
-    const roleIdx = headers.indexOf('role');
+    const rawHeaders = lines[0].split(',').map(h =>
+        h.trim().toLowerCase().replace(/^\ufeff/, '').replace(/['"]/g, '')
+    );
 
-    if (nameIdx === -1 || sidIdx === -1) {
-        showUploadMessage('CSV must have "name" and "student_id" columns.', 'danger');
-        return;
+    const ALIASES = {
+        name: ['name', 'full name', 'fullname'],
+        student_id: ['student_id', 'student id', 'studentid', 'id', 'student', 'roll', 'rollno', 'roll_no', 'roll no'],
+        email: ['email', 'email address', 'mail'],
+        course: ['course', 'program', 'class', 'department'],
+        role: ['role', 'type']
+    };
+
+    function findIdx(aliases) {
+        for (const a of aliases) { const i = rawHeaders.indexOf(a); if (i !== -1) return i; }
+        return -1;
     }
 
-    const defaultRole = document.getElementById('uploadRole').value;
-    previewData = [];
+    const idx = {
+        name: findIdx(ALIASES.name),
+        sid: findIdx(ALIASES.student_id),
+        email: findIdx(ALIASES.email),
+        course: findIdx(ALIASES.course),
+        role: findIdx(ALIASES.role)
+    };
+
+    const defaultRole = document.getElementById('defaultRole').value;
+    previewRows = [];
 
     for (let i = 1; i < lines.length; i++) {
-        const values = parseCSVLine(lines[i]);
-        if (values.length === 0) continue;
-
-        const name = (values[nameIdx] || '').trim();
-        const studentId = (values[sidIdx] || '').trim();
-        
-        if (!name || !studentId) continue;
-
-        previewData.push({
-            name: name,
-            student_id: studentId,
-            email: emailIdx !== -1 ? (values[emailIdx] || '').trim() : '',
-            course: courseIdx !== -1 ? (values[courseIdx] || '').trim() : '',
-            role: roleIdx !== -1 && values[roleIdx] ? values[roleIdx].trim().toLowerCase() : defaultRole
+        const vals = parseLine(lines[i]);
+        if (!vals.length) continue;
+        const name = idx.name !== -1 ? (vals[idx.name] || '').trim() : '';
+        const sid  = idx.sid  !== -1 ? (vals[idx.sid]  || '').trim() : '';
+        if (!name && !sid) continue;
+        previewRows.push({
+            name, student_id: sid,
+            email:  idx.email  !== -1 ? (vals[idx.email]  || '').trim() : '',
+            course: idx.course !== -1 ? (vals[idx.course] || '').trim() : '',
+            role:   idx.role   !== -1 && vals[idx.role] ? vals[idx.role].trim().toLowerCase() : defaultRole
         });
     }
 
-    if (previewData.length === 0) {
-        showUploadMessage('No valid data rows found in CSV.', 'danger');
+    if (!previewRows.length) {
+        showImportMsg('No valid data rows found in CSV.', 'danger');
         return;
     }
 
-    // Show preview
-    showPreview();
+    setMainTable(previewRows.map(r => ({
+        ...r,
+        certificate_generated_count: 0
+    })));
+    showMainActions(true);
+    skipResetOnHide = true;
+    importModal.hide();
+    document.getElementById('importMsg').innerHTML = '';
 }
 
-function parseCSVLine(line) {
-    const result = [];
-    let current = '';
-    let inQuotes = false;
-    
+function parseLine(line) {
+    const res = []; let cur = ''; let inQ = false;
     for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-            inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-            result.push(current);
-            current = '';
-        } else {
-            current += char;
-        }
+        const c = line[i];
+        if (c === '"') inQ = !inQ;
+        else if (c === ',' && !inQ) { res.push(cur); cur = ''; }
+        else cur += c;
     }
-    result.push(current);
-    return result;
+    res.push(cur);
+    return res;
 }
 
-function showPreview() {
-    const tbody = document.getElementById('previewTable');
-    tbody.innerHTML = previewData.map((row, idx) => `
-        <tr>
-            <td>${idx + 1}</td>
-            <td>${escapeHtml(row.name)}</td>
-            <td><code>${escapeHtml(row.student_id)}</code></td>
-            <td>${escapeHtml(row.email || '-')}</td>
-            <td>${escapeHtml(row.course || '-')}</td>
-            <td><span class="badge bg-info">${row.role}</span></td>
-        </tr>
-    `).join('');
-
-    document.getElementById('previewCount').textContent = `${previewData.length} records`;
-    document.getElementById('importCountBtn').textContent = `(${previewData.length} records)`;
-    
-    document.getElementById('step1').style.display = 'none';
-    document.getElementById('step2').style.display = 'block';
-    document.getElementById('backBtn').style.display = 'inline-block';
-    document.getElementById('importBtn').disabled = false;
-    document.getElementById('uploadMessage').innerHTML = '';
+function cancelPreview(keepMsg = false) {
+    document.getElementById('csvFile').value = '';
+    if (!keepMsg) document.getElementById('importMsg').innerHTML = '';
+    previewRows = [];
+    selectedFile = null;
+    clearMainTable();
+    showMainActions(false);
 }
 
-function backToStep1() {
-    document.getElementById('step1').style.display = 'block';
-    document.getElementById('step2').style.display = 'none';
-    document.getElementById('backBtn').style.display = 'none';
-    document.getElementById('importBtn').disabled = true;
-    document.getElementById('importCountBtn').textContent = '';
-}
+async function doConfirm() {
+    if (!selectedFile || !previewRows.length) return;
 
-async function confirmImport() {
-    const file = document.getElementById('uploadFile').files[0];
-    if (!file || previewData.length === 0) return;
+    const batch = document.getElementById('batchName').value.trim();
+    const role = document.getElementById('defaultRole').value;
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+    fd.append('batch_name', batch || selectedFile.name.replace(/\.csv$/i, ''));
+    fd.append('role', role);
 
-    const batchName = document.getElementById('uploadBatchName').value.trim();
-    const role = document.getElementById('uploadRole').value;
+    const btn = document.getElementById('confirmBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('batch_name', batchName || file.name.replace(/\.csv$/i, ''));
-    formData.append('role', role);
+    const r = await API.request('/admin/attendees/import-simple', { method: 'POST', body: fd });
 
-    document.getElementById('importBtn').disabled = true;
-    document.getElementById('importBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check me-1"></i>Confirm';
 
-    const response = await API.request('/admin/attendees/import-simple', {
-        method: 'POST',
-        body: formData
-    });
-
-    document.getElementById('importBtn').disabled = false;
-    document.getElementById('importBtn').innerHTML = '<i class="fas fa-check"></i> Import';
-
-    if (!response) {
-        showUploadMessage('Not authenticated. Please log in again.', 'danger');
+    if (!r || !r.ok) {
+        showMainMsg(r?.data?.detail || 'Failed to import. Please try again.', 'danger');
         return;
     }
 
-    if (!response.ok) {
-        showUploadMessage(response.data?.detail || 'Failed to import attendees.', 'danger');
-        return;
-    }
-
-    const data = response.data || {};
-    showToast(`Imported ${data.imported || 0} attendees. ${data.duplicates || 0} duplicates skipped.`);
-    closeUploadPanel();
-    loadAttendees();
+    const d = r.data || {};
+    showMainMsg(`Saved ${d.imported || 0} attendees. ${d.duplicates || 0} duplicates skipped.`, 'success');
+    showToast(`Saved ${d.imported || 0} attendees.`);
+    cancelPreview(true);
 }
 
-function showUploadMessage(text, type) {
-    const cls = type === 'danger' ? 'alert-danger' : type === 'success' ? 'alert-success' : 'alert-info';
-    document.getElementById('uploadMessage').innerHTML = `<div class="alert ${cls}">${text}</div>`;
+function showImportMsg(text, type) {
+    const level = (type === 'danger' || type === 'success') ? type : 'info';
+    document.getElementById('importMsg').innerHTML =
+        `<div class="alert alert-${level} mb-0">${text}</div>`;
 }
 
-function showToast(message) {
-    document.getElementById('toastMessage').textContent = message;
-    const toast = new bootstrap.Toast(document.getElementById('successToast'), { delay: 4000 });
-    toast.show();
+// ==================== ATTENDEES TABLE ====================
+function updateStats(list) {
+    const wc = list.filter(a => a.certificate_generated_count > 0).length;
+    const pend = list.length - wc;
+    const rate = list.length ? Math.round(wc / list.length * 100) : 0;
+
+    document.getElementById('totalAttendees').textContent = list.length;
+    document.getElementById('withCerts').textContent = wc;
+    document.getElementById('pending').textContent = pend;
+    document.getElementById('completionRate').textContent = rate + '%';
+    document.getElementById('attendeeCountBadge').textContent = list.length;
 }
 
-async function loadAttendees() {
-    try {
-        const response = await API.request('/admin/attendees');
-        
-        if (!response) {
-            showError('Not authenticated. Please log in again.');
-            return;
-        }
-        
-        if (response.ok) {
-            const data = response.data || {};
-            allAttendees = data.attendees || [];
-            
-            // Update stats
-            const withCerts = allAttendees.filter(a => a.certificate_generated_count > 0).length;
-            const pending = allAttendees.length - withCerts;
-            const completionRate = allAttendees.length > 0 
-                ? Math.round((withCerts / allAttendees.length) * 100) 
-                : 0;
-            
-            document.getElementById('totalAttendees').textContent = allAttendees.length;
-            document.getElementById('withCerts').textContent = withCerts;
-            document.getElementById('pending').textContent = pending;
-            document.getElementById('completionRate').textContent = completionRate + '%';
-            document.getElementById('attendeeCountBadge').textContent = allAttendees.length;
-            
-            filterAttendees();
-        } else {
-            showError('Failed to load attendees');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showError('Error loading attendees');
+function setMainTable(rows) {
+    allAttendees = rows;
+    updateStats(allAttendees);
+    applyFilters();
+}
+
+function clearMainTable() {
+    allAttendees = [];
+    updateStats(allAttendees);
+    renderTable([]);
+    showMainActions(false);
+}
+
+function showMainMsg(text, type) {
+    const level = (type === 'danger' || type === 'success') ? type : 'info';
+    document.getElementById('mainMsg').innerHTML =
+        `<div class="alert alert-${level} mb-0">${text}</div>`;
+}
+
+function showMainActions(show) {
+    const el = document.getElementById('mainActions');
+    if (show) {
+        el.classList.remove('d-none');
+        el.classList.add('d-flex');
+    } else {
+        el.classList.add('d-none');
+        el.classList.remove('d-flex');
     }
 }
 
-function filterAttendees() {
-    let filtered = [...allAttendees];
-    
-    const search = document.getElementById('searchInput').value.toLowerCase();
-    if (search) {
-        filtered = filtered.filter(a => 
-            a.name.toLowerCase().includes(search) ||
-            a.student_id.toLowerCase().includes(search) ||
-            (a.email || '').toLowerCase().includes(search)
-        );
-    }
-    
-    const status = document.getElementById('statusFilter').value;
-    if (status === 'with-cert') {
-        filtered = filtered.filter(a => a.certificate_generated_count > 0);
-    } else if (status === 'pending') {
-        filtered = filtered.filter(a => a.certificate_generated_count === 0);
-    }
+function applyFilters() {
+    let list = [...allAttendees];
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    if (q) list = list.filter(a =>
+        a.name.toLowerCase().includes(q) ||
+        a.student_id.toLowerCase().includes(q) ||
+        (a.email || '').toLowerCase().includes(q));
 
-    const role = document.getElementById('roleFilter').value;
-    if (role) {
-        filtered = filtered.filter(a => (a.role || 'student') === role);
-    }
-    
-    renderAttendees(filtered);
+    const sf = document.getElementById('statusFilter').value;
+    if (sf === 'with-cert') list = list.filter(a => a.certificate_generated_count > 0);
+    else if (sf === 'pending') list = list.filter(a => a.certificate_generated_count === 0);
+
+    const rf = document.getElementById('roleFilter').value;
+    if (rf) list = list.filter(a => (a.role || 'student') === rf);
+
+    renderTable(list);
 }
 
-function renderAttendees(attendees) {
+function renderTable(list) {
     const tbody = document.getElementById('attendeesTable');
-    
-    if (attendees.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" class="text-center py-5">
-                    <i class="fas fa-inbox text-muted" style="font-size: 3rem;"></i>
-                    <p class="text-muted mt-3">No attendees found</p>
-                    <button class="btn btn-danger" onclick="openUploadPanel()">
-                        <i class="fas fa-upload"></i> Import Attendees
-                    </button>
-                </td>
-            </tr>
-        `;
+    if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-5">
+            <i class="fas fa-inbox text-muted" style="font-size:3rem"></i>
+            <p class="text-muted mt-3">No preview yet. Import a CSV to view it here.</p>
+            <button class="btn btn-danger" id="emptyImportBtn">
+                <i class="fas fa-upload me-1"></i>Import Attendees</button>
+        </td></tr>`;
+        document.getElementById('emptyImportBtn')?.addEventListener('click', openImport);
         document.getElementById('pagination').innerHTML = '';
         return;
     }
-    
-    const totalPages = Math.ceil(attendees.length / pageSize);
-    const startIdx = (currentPage - 1) * pageSize;
-    const pageAttendees = attendees.slice(startIdx, startIdx + pageSize);
-    
-    tbody.innerHTML = pageAttendees.map(attendee => {
-        const statusBadge = attendee.certificate_generated_count > 0
-            ? `<span class="badge bg-success">Generated (${attendee.certificate_generated_count})</span>`
+
+    const pages = Math.ceil(list.length / pageSize);
+    if (currentPage > pages) currentPage = pages;
+    const start = (currentPage - 1) * pageSize;
+    const slice = list.slice(start, start + pageSize);
+
+    tbody.innerHTML = slice.map(a => {
+        const badge = a.certificate_generated_count > 0
+            ? `<span class="badge bg-success">Generated (${a.certificate_generated_count})</span>`
             : '<span class="badge bg-warning">Pending</span>';
-        
-        return `
-            <tr>
-                <td><strong>${escapeHtml(attendee.name)}</strong></td>
-                <td><code>${attendee.student_id}</code></td>
-                <td>${escapeHtml(attendee.email || '-')}</td>
-                <td>${escapeHtml(attendee.course || '-')}</td>
-                <td><span class="badge bg-info">${attendee.role || 'student'}</span></td>
-                <td>${attendee.certificate_generated_count || 0}</td>
-                <td>${statusBadge}</td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="showAttendeeDetails('${attendee.id}')" title="View details">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
+        return `<tr>
+            <td><strong>${esc(a.name)}</strong></td>
+            <td><code>${esc(a.student_id)}</code></td>
+            <td>${esc(a.email || '-')}</td>
+            <td>${esc(a.course || '-')}</td>
+            <td><span class="badge bg-info">${a.role || 'student'}</span></td>
+            <td>${a.certificate_generated_count || 0}</td>
+            <td>${badge}</td>
+        </tr>`;
     }).join('');
-    
-    renderPagination(attendees.length);
+
+    renderPages(list.length);
 }
 
-function renderPagination(totalItems) {
-    const totalPages = Math.ceil(totalItems / pageSize);
+function renderPages(total) {
+    const pages = Math.ceil(total / pageSize);
     const nav = document.getElementById('pagination');
-    
-    if (totalPages <= 1) {
-        nav.innerHTML = '';
-        return;
-    }
-    
-    let html = '<ul class="pagination justify-content-center">';
-    
-    if (currentPage > 1) {
-        html += `<li class="page-item"><button class="page-link" onclick="setPage(${currentPage - 1})">Previous</button></li>`;
-    }
-    
-    for (let i = 1; i <= totalPages; i++) {
-        const active = i === currentPage ? 'active' : '';
-        html += `<li class="page-item ${active}"><button class="page-link" onclick="setPage(${i})">${i}</button></li>`;
-    }
-    
-    if (currentPage < totalPages) {
-        html += `<li class="page-item"><button class="page-link" onclick="setPage(${currentPage + 1})">Next</button></li>`;
-    }
-    
-    html += '</ul>';
-    nav.innerHTML = html;
+    if (pages <= 1) { nav.innerHTML = ''; return; }
+
+    let h = '<ul class="pagination justify-content-center">';
+    if (currentPage > 1) h += `<li class="page-item"><button class="page-link" data-p="${currentPage-1}">Previous</button></li>`;
+    for (let i = 1; i <= pages; i++)
+        h += `<li class="page-item ${i===currentPage?'active':''}"><button class="page-link" data-p="${i}">${i}</button></li>`;
+    if (currentPage < pages) h += `<li class="page-item"><button class="page-link" data-p="${currentPage+1}">Next</button></li>`;
+    h += '</ul>';
+    nav.innerHTML = h;
+    nav.querySelectorAll('[data-p]').forEach(btn => btn.addEventListener('click', () => {
+        currentPage = parseInt(btn.dataset.p);
+        applyFilters();
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    }));
 }
 
-function setPage(page) {
-    currentPage = page;
-    filterAttendees();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+// ==================== UTILS ====================
+function esc(t) {
+    if (!t) return '';
+    const m = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'};
+    return String(t).replace(/[&<>"']/g, c => m[c]);
 }
 
-async function showAttendeeDetails(attendeeId) {
-    currentAttendeeId = attendeeId;
-    try {
-        const response = await API.request(`/admin/attendees/${attendeeId}`);
-        
-        if (response && response.ok) {
-            const attendee = response.data;
-            let html = `
-                <div class="mb-3">
-                    <label class="form-label text-muted">Name</label>
-                    <p class="fw-bold">${escapeHtml(attendee.name)}</p>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted">Student ID</label>
-                    <p class="fw-bold"><code>${attendee.student_id}</code></p>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted">Email</label>
-                    <p class="fw-bold">${escapeHtml(attendee.email || '-')}</p>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted">Course/Batch</label>
-                    <p class="fw-bold">${escapeHtml(attendee.course || '-')}</p>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted">Role</label>
-                    <p class="fw-bold">${escapeHtml(attendee.role || 'student')}</p>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted">Certificates Generated</label>
-                    <p class="fw-bold"><span class="badge bg-success">${attendee.certificate_generated_count || 0}</span></p>
-                </div>
-            `;
-            
-            document.getElementById('detailsContent').innerHTML = html;
-            
-            const downloadBtn = document.getElementById('downloadCertBtn');
-            downloadBtn.style.display = attendee.certificate_generated_count > 0 ? 'block' : 'none';
-            
-            new bootstrap.Modal(document.getElementById('detailsModal')).show();
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showError('Failed to load attendee details');
-    }
+function debounce(fn, ms) {
+    let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
 }
 
-async function downloadCertificate() {
-    if (!currentAttendeeId) return;
-    const token = API.getToken();
-    window.location.href = `/certificates/download/${currentAttendeeId}?token=${token}`;
+function showToast(msg) {
+    document.getElementById('toastMsg').textContent = msg;
+    new bootstrap.Toast(document.getElementById('toast'), {delay: 4000}).show();
 }
 
-function escapeHtml(text) {
-    if (!text) return '';
-    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return String(text).replace(/[&<>"']/g, m => map[m]);
-}
-
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-function showError(message) {
-    const alert = document.createElement('div');
-    alert.className = 'alert alert-danger alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
-    alert.style.zIndex = '9999';
-    alert.innerHTML = `
-        <i class="fas fa-exclamation-circle"></i> ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    document.body.appendChild(alert);
-    setTimeout(() => alert.remove(), 5000);
+function showErr(msg) {
+    const el = document.createElement('div');
+    el.className = 'alert alert-danger alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+    el.style.zIndex = '9999';
+    el.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 5000);
 }
 </script>
 {% endblock %}

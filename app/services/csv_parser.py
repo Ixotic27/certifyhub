@@ -52,25 +52,18 @@ class CSVParser:
             )
 
         header_map = cls._map_headers(reader.fieldnames)
-        required = {"name", "student_id"}
-        if not required.issubset(header_map.keys()):
-            missing = required - set(header_map.keys())
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing required columns: {', '.join(sorted(missing))}"
-            )
 
         rows = []
         for row in reader:
             if not row:
                 continue
-            name = (row.get(header_map["name"]) or "").strip()
-            student_id = (row.get(header_map["student_id"]) or "").strip()
+            name = (row.get(header_map.get("name", "")) or "").strip() if header_map.get("name") else ""
+            student_id = (row.get(header_map.get("student_id", "")) or "").strip() if header_map.get("student_id") else ""
             email = (row.get(header_map.get("email", "")) or "").strip() if header_map.get("email") else ""
             course = (row.get(header_map.get("course", "")) or "").strip() if header_map.get("course") else ""
             role = (row.get(header_map.get("role", "")) or "").strip().lower() if header_map.get("role") else None
 
-            if not name or not student_id:
+            if not name and not student_id:
                 continue
 
             rows.append({

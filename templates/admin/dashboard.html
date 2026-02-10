@@ -81,18 +81,19 @@
         </div>
     </div>
 
-    <!-- Storage Usage -->
+    <!-- Server Storage Usage -->
     <div class="row g-4 mb-4">
         <div class="col-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
-                            <h6 class="mb-0"><i class="fas fa-hdd text-primary"></i> Storage Usage</h6>
+                            <h6 class="mb-0"><i class="fas fa-server text-primary"></i> Server Storage <span class="badge bg-info ms-2">Shared</span></h6>
+                            <small class="text-muted">Global storage pool for all clubs</small>
                         </div>
-                        <div>
+                        <div class="text-end">
                             <span id="storageText" class="fw-bold">-</span>
-                            <small class="text-muted">/ 100 MB</small>
+                            <small class="text-muted">/ 500 MB</small>
                         </div>
                     </div>
                     <div class="progress" style="height: 20px;">
@@ -101,6 +102,9 @@
                     <div class="d-flex justify-content-between mt-2">
                         <small class="text-muted"><i class="fas fa-image"></i> Templates: <span id="templateStorage">-</span></small>
                         <small class="text-muted"><i class="fas fa-file-csv"></i> CSV Imports: <span id="csvStorage">-</span></small>
+                    </div>
+                    <div class="alert alert-warning mt-3 mb-0 py-2" style="font-size: 0.85rem;">
+                        <i class="fas fa-clock"></i> <strong>Auto-cleanup policy:</strong> Templates unused for 30 days are automatically removed to free up space.
                     </div>
                 </div>
             </div>
@@ -144,6 +148,9 @@
                     <a href="/admin/ui/attendee-lists" class="btn btn-outline-secondary w-100 mb-2">
                         <i class="fas fa-list"></i> View Attendee Lists
                     </a>
+                    <button class="btn btn-outline-primary w-100" id="openEventModal">
+                        <i class="fas fa-calendar-plus"></i> Make Certificates Available
+                    </button>
                 </div>
             </div>
         </div>
@@ -185,6 +192,45 @@
     </div>
 </div>
 
+<!-- Create Event Modal -->
+<div class="modal fade" id="eventModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-calendar-plus"></i> Create Certificate Event</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Event Name</label>
+                    <input type="text" class="form-control" id="eventName" placeholder="e.g., Hackathon 2026" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Description</label>
+                    <textarea class="form-control" id="eventDesc" rows="3" placeholder="Optional description"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Template</label>
+                    <select class="form-select" id="eventTemplate"></select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">CSV List</label>
+                    <select class="form-select" id="eventImport"></select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Event Date</label>
+                    <input type="date" class="form-control" id="eventDate" />
+                </div>
+                <div id="eventMsg"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="saveEventBtn">Save Event</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
 
@@ -194,6 +240,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Refresh every 30 seconds
     setInterval(loadDashboardData, 30000);
+
+    const eventModal = new bootstrap.Modal(document.getElementById('eventModal'));
+    document.getElementById('openEventModal').addEventListener('click', async () => {
+        await loadEventOptions();
+        document.getElementById('eventMsg').innerHTML = '';
+        eventModal.show();
+    });
+
+    document.getElementById('saveEventBtn').addEventListener('click', saveEvent);
 });
 
 function formatBytes(bytes) {
@@ -247,7 +302,7 @@ async function loadDashboardData() {
             document.getElementById('pendingCerts').textContent = data.never_generated || 0;
             
             // Update storage usage
-            updateStorageDisplay(data.storage_used_bytes || 0, data.storage_limit_bytes || 104857600);
+            updateStorageDisplay(data.storage_used_bytes || 0, data.storage_limit_bytes || 524288000);
             
             // Update trend chart
             if (data.trend_7_days && data.trend_7_days.length > 0) {
@@ -374,6 +429,81 @@ async function loadActivityLogs() {
     } catch (error) {
         console.error('Error loading activity logs:', error);
     }
+}
+
+async function loadEventOptions() {
+    const token = localStorage.getItem('token');
+    const templateSelect = document.getElementById('eventTemplate');
+    const importSelect = document.getElementById('eventImport');
+
+    templateSelect.innerHTML = '<option value="">Loading templates...</option>';
+    importSelect.innerHTML = '<option value="">Loading CSV lists...</option>';
+
+    const [tplRes, impRes] = await Promise.all([
+        fetch('/admin/templates', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/admin/attendees/imports', { headers: { 'Authorization': `Bearer ${token}` } })
+    ]);
+
+    if (tplRes.ok) {
+        const data = await tplRes.json();
+        const templates = data.templates || [];
+        templateSelect.innerHTML = templates.length ? '<option value="">Select a template</option>' : '<option value="">No templates available</option>';
+        templates.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.name;
+            templateSelect.appendChild(opt);
+        });
+    } else {
+        templateSelect.innerHTML = '<option value="">Unable to load templates</option>';
+    }
+
+    if (impRes.ok) {
+        const data = await impRes.json();
+        const imports = data.imports || [];
+        importSelect.innerHTML = imports.length ? '<option value="">Select a CSV list</option>' : '<option value="">No CSV lists available</option>';
+        imports.forEach(i => {
+            const opt = document.createElement('option');
+            opt.value = i.id;
+            opt.textContent = i.filename;
+            importSelect.appendChild(opt);
+        });
+    } else {
+        importSelect.innerHTML = '<option value="">Unable to load CSV lists</option>';
+    }
+}
+
+async function saveEvent() {
+    const token = localStorage.getItem('token');
+    const payload = {
+        name: document.getElementById('eventName').value.trim(),
+        description: document.getElementById('eventDesc').value.trim() || null,
+        template_id: document.getElementById('eventTemplate').value,
+        import_id: document.getElementById('eventImport').value,
+        event_date: document.getElementById('eventDate').value
+    };
+
+    if (!payload.name || !payload.template_id || !payload.import_id || !payload.event_date) {
+        document.getElementById('eventMsg').innerHTML = '<div class="alert alert-danger mb-0">Please fill all required fields.</div>';
+        return;
+    }
+
+    const res = await fetch('/admin/certificate-events', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        document.getElementById('eventMsg').innerHTML = `<div class="alert alert-danger mb-0">${err.detail || 'Failed to create event'}</div>`;
+        return;
+    }
+
+    document.getElementById('eventMsg').innerHTML = '<div class="alert alert-success mb-0">Event created and available for students.</div>';
 }
 
 function getActionIcon(action) {

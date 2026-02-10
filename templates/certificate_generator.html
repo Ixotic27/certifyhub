@@ -331,6 +331,16 @@
                         </select>
                     </div>
 
+                    <div class="form-group">
+                        <label for="eventSelect">
+                            <i class="fas fa-calendar-alt"></i> Event Date
+                        </label>
+                        <select id="eventSelect" class="form-control" required>
+                            <option value="">Select a club first</option>
+                        </select>
+                        <small id="eventDetails" style="display:block; margin-top: 0.5rem; color: #b8c0ff;"></small>
+                    </div>
+
                         <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
                             <button type="button" class="get-cert-btn" id="previewBtn" style="background: linear-gradient(135deg, #3e8ef7 0%, #52b0ff 100%);">
                                 <i class="fas fa-eye"></i> Preview Certificate
@@ -372,11 +382,13 @@
         const form = document.getElementById('certificateForm');
         const submitBtn = document.getElementById('submitBtn');
         const messageContainer = document.getElementById('message-container');
-            const previewBtn = document.getElementById('previewBtn');
-            const clubSelect = document.getElementById('club');
-            const previewModal = document.getElementById('previewModal');
-            const previewCanvas = document.getElementById('previewCanvas');
-            const closePreview = document.getElementById('closePreview');
+        const previewBtn = document.getElementById('previewBtn');
+        const clubSelect = document.getElementById('club');
+        const eventSelect = document.getElementById('eventSelect');
+        const eventDetails = document.getElementById('eventDetails');
+        const previewModal = document.getElementById('previewModal');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const closePreview = document.getElementById('closePreview');
 
             let lastVerifyData = null;
 
@@ -399,6 +411,12 @@
             }
 
             loadClubs();
+            clubSelect.addEventListener('change', loadEvents);
+            document.getElementById('role').addEventListener('change', loadEvents);
+            eventSelect.addEventListener('change', () => {
+                const opt = eventSelect.selectedOptions[0];
+                eventDetails.textContent = opt && opt.dataset.desc ? opt.dataset.desc : '';
+            });
 
             closePreview.addEventListener('click', () => {
                 previewModal.style.display = 'none';
@@ -408,10 +426,11 @@
                 const name = document.getElementById('name').value.trim();
                 const studentId = document.getElementById('studentId').value.trim();
                 const role = document.getElementById('role').value;
+                const eventId = eventSelect.value;
                 const clubSlug = clubSelect.value || null;
 
-                if (!name || !studentId || !clubSlug) {
-                    showMessage('Please select a club and fill in name + student ID.', 'danger');
+                if (!name || !studentId || !clubSlug || !eventId) {
+                    showMessage('Please select a club, event date, and fill in name + student ID.', 'danger');
                     return;
                 }
 
@@ -419,7 +438,7 @@
                     const verifyResponse = await fetch('/verify', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ club_slug: clubSlug, role, name, student_id: studentId })
+                        body: JSON.stringify({ club_slug: clubSlug, role, name, student_id: studentId, event_id: eventId })
                     });
                     if (!verifyResponse.ok) throw new Error('Certificate not found');
                     lastVerifyData = await verifyResponse.json();
@@ -436,10 +455,11 @@
             const name = document.getElementById('name').value.trim();
             const studentId = document.getElementById('studentId').value.trim();
             const role = document.getElementById('role').value;
+            const eventId = eventSelect.value;
                 const clubSlug = clubSelect.value || null;
 
-                if (!name || !studentId || !clubSlug) {
-                    showMessage('Please select a club and fill in all fields', 'danger');
+                if (!name || !studentId || !clubSlug || !eventId) {
+                    showMessage('Please select a club, event date, and fill in all fields', 'danger');
                 return;
             }
 
@@ -458,7 +478,8 @@
                             club_slug: clubSlug,
                         role: role,
                         name: name,
-                        student_id: studentId
+                        student_id: studentId,
+                        event_id: eventId
                     })
                 });
 
@@ -467,7 +488,7 @@
                 }
 
                 // Download the certificate
-                const downloadUrl = `/certificate/download?club_slug=${encodeURIComponent(clubSlug)}&name=${encodeURIComponent(name)}&student_id=${encodeURIComponent(studentId)}&role=${encodeURIComponent(role)}`;
+                const downloadUrl = `/certificate/download?club_slug=${encodeURIComponent(clubSlug)}&name=${encodeURIComponent(name)}&student_id=${encodeURIComponent(studentId)}&role=${encodeURIComponent(role)}&event_id=${encodeURIComponent(eventId)}`;
                 window.location.href = downloadUrl;
 
                 showMessage('Certificate downloaded successfully!', 'success');
@@ -496,6 +517,40 @@
                 }, 5000);
             }
         }
+
+            async function loadEvents() {
+                const clubSlug = clubSelect.value;
+                const role = document.getElementById('role').value;
+                eventDetails.textContent = '';
+
+                if (!clubSlug) {
+                    eventSelect.innerHTML = '<option value="">Select a club first</option>';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/events?club_slug=${encodeURIComponent(clubSlug)}&role=${encodeURIComponent(role)}`);
+                    if (!response.ok) throw new Error('Failed to load events');
+                    const data = await response.json();
+                    const events = data.events || [];
+
+                    if (!events.length) {
+                        eventSelect.innerHTML = '<option value="">No events available</option>';
+                        return;
+                    }
+
+                    eventSelect.innerHTML = '<option value="">Select an event</option>';
+                    events.forEach(e => {
+                        const opt = document.createElement('option');
+                        opt.value = e.id;
+                        opt.dataset.desc = e.description || '';
+                        opt.textContent = `${new Date(e.event_date).toLocaleDateString()} - ${e.name}`;
+                        eventSelect.appendChild(opt);
+                    });
+                } catch (error) {
+                    eventSelect.innerHTML = '<option value="">Unable to load events</option>';
+                }
+            }
 
             async function renderPreview(data, name, studentId) {
                 const imgUrl = data.template_image_url;

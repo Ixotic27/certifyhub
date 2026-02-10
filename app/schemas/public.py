@@ -42,6 +42,7 @@ class CertificateVerifyRequest(BaseModel):
     role: Optional[str] = Field(default=None, min_length=1, max_length=20)
     name: str = Field(..., min_length=1, max_length=200)
     student_id: str = Field(..., min_length=1, max_length=50)
+    event_id: Optional[UUID] = Field(default=None)
 
 
 class CertificateVerifyResponse(BaseModel):
@@ -55,3 +56,19 @@ class CertificateVerifyResponse(BaseModel):
     name: str
     student_id: str
     event_date: Optional[date] = None
+
+
+class PublicEventResponse(BaseModel):
+    """Public event info"""
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    event_date: date
+    template_id: UUID
+    role: str
+
+
+class PublicEventListResponse(BaseModel):
+    """List of events for a club"""
+    total: int
+    events: List[PublicEventResponse]

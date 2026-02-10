@@ -237,17 +237,15 @@ class AdminService:
             {"club_id": club_id}
         )
 
-        # Storage usage
-        template_bytes = await database.fetch_val(
-            "SELECT COALESCE(SUM(image_size_bytes), 0) FROM certificate_templates WHERE club_id = :club_id",
-            {"club_id": club_id}
+        # Global storage usage (shared pool)
+        global_template_bytes = await database.fetch_val(
+            "SELECT COALESCE(SUM(image_size_bytes), 0) FROM certificate_templates"
         )
-        import_bytes = await database.fetch_val(
-            "SELECT COALESCE(SUM(file_size_bytes), 0) FROM attendee_imports WHERE club_id = :club_id",
-            {"club_id": club_id}
+        global_import_bytes = await database.fetch_val(
+            "SELECT COALESCE(SUM(file_size_bytes), 0) FROM attendee_imports"
         )
-        storage_used_bytes = int(template_bytes or 0) + int(import_bytes or 0)
-        storage_limit_bytes = 100 * 1024 * 1024  # 100 MB
+        storage_used_bytes = int(global_template_bytes or 0) + int(global_import_bytes or 0)
+        storage_limit_bytes = 500 * 1024 * 1024  # 500 MB global
 
         return {
             "club_id": club_id,
@@ -260,6 +258,71 @@ class AdminService:
             "top_downloaded": [dict(row) for row in top_downloaded],
             "storage_used_bytes": storage_used_bytes,
             "storage_limit_bytes": storage_limit_bytes
+        }
+    
+    @staticmethod
+    async def get_unused_templates(days: int = 30) -> list:
+        """
+        Get templates that have no certificate generations in the last N days
+        and were created more than N days ago.
+        """
+        rows = await database.fetch_all(
+            """
+            SELECT 
+                ct.id, ct.name, ct.club_id, ct.image_url, ct.image_size_bytes, ct.created_at,
+                c.name as club_name,
+                (SELECT MAX(created_at) FROM certificate_generations WHERE template_id = ct.id) as last_generated
+            FROM certificate_templates ct
+            JOIN clubs c ON c.id = ct.club_id
+            WHERE ct.is_active = TRUE
+            AND ct.created_at < NOW() - INTERVAL :days DAY
+            AND (
+                NOT EXISTS (SELECT 1 FROM certificate_generations WHERE template_id = ct.id)
+                OR (SELECT MAX(created_at) FROM certificate_generations WHERE template_id = ct.id) < NOW() - INTERVAL :days DAY
+            )
+            ORDER BY ct.created_at ASC
+            """,
+            {"days": days}
+        )
+        return [dict(r) for r in rows]
+    
+    @staticmethod
+    async def cleanup_unused_templates(days: int = 30) -> dict:
+        """
+        Deactivate templates unused for N days and delete their images from storage.
+        Returns count of cleaned up templates and bytes freed.
+        """
+        from app.services.storage_service import StorageService
+        
+        unused = await AdminService.get_unused_templates(days)
+        
+        cleaned_count = 0
+        bytes_freed = 0
+        
+        for template in unused:
+            try:
+                # Delete image from storage
+                if template.get("image_url"):
+                    await StorageService.delete_by_url(template["image_url"])
+                
+                # Deactivate template (soft delete)
+                await database.execute(
+                    """
+                    UPDATE certificate_templates 
+                    SET is_active = FALSE, image_size_bytes = 0
+                    WHERE id = :id
+                    """,
+                    {"id": str(template["id"])}
+                )
+                
+                cleaned_count += 1
+                bytes_freed += template.get("image_size_bytes", 0) or 0
+            except Exception:
+                continue
+        
+        return {
+            "cleaned_count": cleaned_count,
+            "bytes_freed": bytes_freed
         }
 
 

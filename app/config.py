@@ -13,12 +13,12 @@ class Settings(BaseSettings):
     # Application
     APP_ENV: str = "development"
     APP_NAME: str = "CertifyHub"
-    APP_URL: str = "http://localhost:8000"
+    APP_URL: str = "http://127.0.0.1:8001"
     SECRET_KEY: str = "temp-secret-key-change-later"
     DEBUG: bool = True
     
-    # Database
-    DATABASE_URL: str = "sqlite:///./certifyhub.db"  # Temporary SQLite for now
+    # Database (Supabase PostgreSQL)
+    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/certifyhub"
     
     # JWT
     JWT_SECRET_KEY: str = "temp-jwt-secret-change-later"

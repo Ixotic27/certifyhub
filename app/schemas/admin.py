@@ -4,7 +4,7 @@ Club Admin Request/Response Models
 
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
 
 
@@ -71,3 +71,26 @@ class AdminDashboardResponse(BaseModel):
     never_generated: int
     trend_7_days: list[DashboardTrendItem]
     top_downloaded: list[DashboardTopDownloaded]
+
+
+class CreateCertificateEventRequest(BaseModel):
+    """Create a certificate event"""
+    template_id: UUID
+    import_id: UUID
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    event_date: date
+
+
+class CertificateEventResponse(BaseModel):
+    """Certificate event details"""
+    id: UUID
+    club_id: UUID
+    template_id: UUID
+    import_id: UUID
+    name: str
+    description: Optional[str]
+    event_date: date
+    role: str
+    is_active: bool
+    created_at: datetime

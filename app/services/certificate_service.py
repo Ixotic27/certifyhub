@@ -236,15 +236,55 @@ class CertificateService:
         student_id: str,
         template_id: Optional[str],
         client_ip: Optional[str],
-        role: Optional[str] = None
+        role: Optional[str] = None,
+        event_id: Optional[str] = None
     ) -> Tuple[bytes, str]:
         club = await CertificateService.get_club_by_slug(club_slug)
-        attendee = await CertificateService.get_attendee_for_verification(
-            str(club["id"]),
-            name,
-            student_id,
-            role=role
-        )
+
+        if event_id:
+            event = await database.fetch_one(
+                """
+                SELECT * FROM certificate_events
+                WHERE id = :event_id AND is_active = TRUE
+                """,
+                {"event_id": event_id}
+            )
+            if not event:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+
+            attendee = await database.fetch_one(
+                """
+                SELECT * FROM attendees
+                WHERE club_id = :club_id
+                  AND import_id = :import_id
+                  AND student_id = :student_id
+                  AND LOWER(name) = LOWER(:name)
+                  AND role = :role
+                """,
+                {
+                    "club_id": str(club["id"]),
+                    "import_id": str(event["import_id"]),
+                    "student_id": student_id,
+                    "name": name,
+                    "role": event["role"]
+                }
+            )
+            if not attendee:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No matching attendee found")
+
+            attendee = dict(attendee)
+            attendee["event_date"] = event["event_date"]
+            attendee["event_name"] = event["name"]
+            template_id = str(event["template_id"])
+            role = event["role"]
+        else:
+            attendee = await CertificateService.get_attendee_for_verification(
+                str(club["id"]),
+                name,
+                student_id,
+                role=role
+            )
+
         template = await CertificateService.resolve_template(
             str(club["id"]),
             template_id,
@@ -307,8 +347,8 @@ class CertificateService:
         await database.execute(
             """
             INSERT INTO certificate_generations
-            (id, club_id, attendee_id, template_id, certificate_id, generated_by_user, ip_address)
-            VALUES (:id, :club_id, :attendee_id, :template_id, :certificate_id, 'public', :ip_address)
+            (id, club_id, attendee_id, template_id, certificate_id, generated_by_user, ip_address, event_id)
+            VALUES (:id, :club_id, :attendee_id, :template_id, :certificate_id, 'public', :ip_address, :event_id)
             """,
             {
                 "id": str(uuid.uuid4()),
@@ -316,7 +356,8 @@ class CertificateService:
                 "attendee_id": str(attendee["id"]),
                 "template_id": str(template["id"]),
                 "certificate_id": certificate_id,
-                "ip_address": client_ip
+                "ip_address": client_ip,
+                "event_id": event_id
             }
         )
 

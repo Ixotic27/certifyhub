@@ -6,11 +6,27 @@ Main application setup and route registration
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.exceptions import HTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import settings
 from app.database import connect_db, disconnect_db
 import os
+
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    """Prevent browser from caching HTML pages"""
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        ct = response.headers.get("content-type", "")
+        if "text/html" in ct:
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
 
 # Create FastAPI app
 app = FastAPI(
@@ -29,8 +45,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# No-cache middleware for HTML pages
+app.add_middleware(NoCacheMiddleware)
+
+# Custom 404 error handler - show friendly page instead of raw JSON
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    # If client expects JSON (API call), return JSON
+    accept = request.headers.get("accept", "")
+    if "application/json" in accept or request.url.path.startswith(("/auth/", "/admin/", "/platform/")) and request.method != "GET":
+        return JSONResponse(status_code=404, content={"detail": "Not Found"})
+    # Otherwise show a friendly HTML page
+    return HTMLResponse(
+        status_code=404,
+        content="""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Page Not Found - CertifyHub</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>body{background:radial-gradient(120% 120% at 50% 10%,#1f2347 0%,#12142b 45%,#0b0d1f 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;color:#e6e9ff;font-family:'Segoe UI',sans-serif;}</style>
+</head><body>
+<div class="text-center">
+<h1 style="font-size:5rem;font-weight:700;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">404</h1>
+<h3 class="mb-3">Page Not Found</h3>
+<p class="text-secondary mb-4">The page you're looking for doesn't exist or has been moved.</p>
+<div class="d-flex gap-3 justify-content-center">
+<a href="/login" class="btn btn-outline-light"><i class="fas fa-sign-in-alt"></i> Go to Login</a>
+<a href="/" class="btn btn-outline-secondary"><i class="fas fa-home"></i> Home</a>
+</div></div></body></html>"""
+    )
+
 # Setup Jinja2 templates
 templates = Jinja2Templates(directory="templates")
+templates.env.auto_reload = True
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

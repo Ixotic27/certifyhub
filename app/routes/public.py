@@ -14,6 +14,8 @@ from app.schemas.public import (
     PublicClubResponse,
     PublicClubDetailResponse,
     PublicTemplateResponse,
+    PublicEventListResponse,
+    PublicEventResponse,
     CertificateVerifyRequest,
     CertificateVerifyResponse,
 )
@@ -63,24 +65,98 @@ async def get_public_club(slug: str):
     }
 
 
+@router.get("/events", response_model=PublicEventListResponse)
+async def list_public_events(
+    club_slug: str = Query(..., min_length=1),
+    role: Optional[str] = Query(default=None)
+):
+    club = await database.fetch_one(
+        "SELECT id FROM clubs WHERE slug = :slug AND is_active = TRUE",
+        {"slug": club_slug}
+    )
+    if not club:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Club not found")
+
+    params = {"club_id": str(club["id"])}
+    role_filter = ""
+    if role:
+        role_filter = "AND role = :role"
+        params["role"] = role
+
+    rows = await database.fetch_all(
+        f"""
+        SELECT id, name, description, event_date, template_id, role
+        FROM certificate_events
+        WHERE club_id = :club_id AND is_active = TRUE
+        {role_filter}
+        ORDER BY event_date DESC, created_at DESC
+        """,
+        params
+    )
+
+    return {
+        "total": len(rows),
+        "events": [PublicEventResponse(**dict(r)) for r in rows]
+    }
+
+
 @router.post("/certificate/verify", response_model=CertificateVerifyResponse)
 async def verify_certificate(request: CertificateVerifyRequest):
     """Verify certificate by club slug, name, and student ID"""
-    if request.club_slug:
-        club = await CertificateService.get_club_by_slug(request.club_slug)
-        attendee = await CertificateService.get_attendee_for_verification(
-            str(club["id"]),
-            request.name,
-            request.student_id,
-            role=request.role
+    if request.event_id:
+        event = await database.fetch_one(
+            """
+            SELECT e.*, c.slug AS club_slug
+            FROM certificate_events e
+            JOIN clubs c ON c.id = e.club_id
+            WHERE e.id = :event_id AND e.is_active = TRUE
+            """,
+            {"event_id": str(request.event_id)}
         )
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        attendee = await database.fetch_one(
+            """
+            SELECT * FROM attendees
+            WHERE club_id = :club_id
+              AND import_id = :import_id
+              AND student_id = :student_id
+              AND LOWER(name) = LOWER(:name)
+              AND role = :role
+            """,
+            {
+                "club_id": str(event["club_id"]),
+                "import_id": str(event["import_id"]),
+                "student_id": request.student_id,
+                "name": request.name,
+                "role": event["role"]
+            }
+        )
+        if not attendee:
+            raise HTTPException(status_code=404, detail="No matching attendee found")
+
+        attendee = dict(attendee)
+        attendee["event_date"] = event["event_date"]
+        attendee["event_name"] = event["name"]
+        attendee["template_id"] = event["template_id"]
+        club = {"id": event["club_id"], "slug": event["club_slug"]}
     else:
-        attendee = await CertificateService.get_attendee_for_verification_any_club(
-            request.name,
-            request.student_id,
-            role=request.role
-        )
-        club = await CertificateService.get_club_by_slug(attendee["club_slug"])
+        if request.club_slug:
+            club = await CertificateService.get_club_by_slug(request.club_slug)
+            attendee = await CertificateService.get_attendee_for_verification(
+                str(club["id"]),
+                request.name,
+                request.student_id,
+                role=request.role
+            )
+        else:
+            attendee = await CertificateService.get_attendee_for_verification_any_club(
+                request.name,
+                request.student_id,
+                role=request.role
+            )
+            club = await CertificateService.get_club_by_slug(attendee["club_slug"])
 
     template = await CertificateService.resolve_template(
         str(club["id"]),
@@ -116,11 +192,28 @@ async def download_certificate(
     name: str = Query(..., description="Attendee name"),
     student_id: str = Query(..., description="Attendee student ID"),
     template_id: Optional[str] = Query(default=None, description="Optional template ID"),
-    role: Optional[str] = Query(default=None, description="Optional attendee role")
+    role: Optional[str] = Query(default=None, description="Optional attendee role"),
+    event_id: Optional[str] = Query(default=None, description="Optional event ID")
 ):
     """Generate and download certificate PDF"""
     client_ip = request.client.host if request and request.client else None
     
+    # If event_id is provided, derive template_id and club_slug from event
+    if event_id:
+        event = await database.fetch_one(
+            """
+            SELECT e.*, c.slug AS club_slug
+            FROM certificate_events e
+            JOIN clubs c ON c.id = e.club_id
+            WHERE e.id = :event_id AND e.is_active = TRUE
+            """,
+            {"event_id": event_id}
+        )
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
+        template_id = str(event["template_id"])
+        club_slug = event["club_slug"]
+
     # If template_id is provided, get club_slug from template (allows "Try Certificate" without attendee in DB)
     if not club_slug and template_id:
         template = await database.fetch_one(
@@ -139,6 +232,41 @@ async def download_certificate(
     if not club_slug:
         attendee = await CertificateService.get_attendee_for_verification_any_club(name, student_id, role=role)
         club_slug = attendee["club_slug"]
+
+    # If event_id is set, validate attendee against the event import list
+    if event_id:
+        event = await database.fetch_one(
+            """
+            SELECT * FROM certificate_events
+            WHERE id = :event_id AND is_active = TRUE
+            """,
+            {"event_id": event_id}
+        )
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        attendee = await database.fetch_one(
+            """
+            SELECT * FROM attendees
+            WHERE club_id = :club_id
+              AND import_id = :import_id
+              AND student_id = :student_id
+              AND LOWER(name) = LOWER(:name)
+              AND role = :role
+            """,
+            {
+                "club_id": str(event["club_id"]),
+                "import_id": str(event["import_id"]),
+                "student_id": student_id,
+                "name": name,
+                "role": event["role"]
+            }
+        )
+        if not attendee:
+            raise HTTPException(status_code=404, detail="No matching attendee found")
+        attendee = dict(attendee)
+        attendee["event_date"] = event["event_date"]
+        attendee["event_name"] = event["name"]
         
     pdf_bytes, certificate_id = await CertificateService.generate_certificate_pdf(
         club_slug=club_slug,
@@ -146,7 +274,8 @@ async def download_certificate(
         student_id=student_id,
         template_id=template_id,
         client_ip=client_ip,
-        role=role
+        role=role,
+        event_id=event_id
     )
 
     filename = f"certificate_{student_id}_{certificate_id}.pdf"

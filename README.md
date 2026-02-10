@@ -111,7 +111,7 @@ Open `.env` and fill in your values:
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string, e.g. `postgresql://postgres:password@localhost:5432/certifyhub` |
+| `DATABASE_URL` | Supabase PostgreSQL connection string (get from Supabase Dashboard > Settings > Database > Connection string) |
 | `SECRET_KEY` | Random string (min 32 chars) for app security |
 | `JWT_SECRET_KEY` | Random string (min 32 chars) for JWT tokens |
 | `SUPABASE_URL` | Your Supabase project URL |
