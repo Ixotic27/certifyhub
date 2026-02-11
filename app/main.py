@@ -237,7 +237,3 @@ if __name__ == "__main__":
     )
 
 # ... existing code ...
-
-# For Vercel deployment
-from mangum import Mangum
-handler = Mangum(app)

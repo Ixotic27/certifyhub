@@ -29,12 +29,9 @@ email-validator==2.2.0
 # Environment Variables
 python-dotenv==1.0.1
 
-# Validation (NO RUST COMPILATION)
+# Validation (NO RUST COMPILATION NEEDED)
 pydantic==2.10.3
 pydantic-settings==2.7.0
 
 # Templates (Jinja2)
 jinja2==3.1.4
-
-# Mangum for Vercel serverless (REQUIRED FOR VERCEL)
-mangum==0.18.1
