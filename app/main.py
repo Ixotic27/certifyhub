@@ -235,3 +235,9 @@ if __name__ == "__main__":
         port=8000,
         reload=True  # Auto-reload on code changes
     )
+
+# ... existing code ...
+
+# For Vercel deployment
+from mangum import Mangum
+handler = Mangum(app)
